@@ -1,0 +1,2 @@
+class ArgumentFormatError(RuntimeError):
+    pass
