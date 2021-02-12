@@ -1,5 +1,9 @@
+from typing import List
 from internal.utils.logger import Logger
 from internal.utils.exceptions import FileFormatError
+from internal.sat.clause import Clause
+from internal.sat.symbol import Symbol
+from internal.sat.symbols import Symbols
 
 logger = Logger.get_logger()
 
@@ -7,16 +11,46 @@ class Parser:
     def __init__(self):
         pass
 
-    def parse(self, filepath: str):
-        # TODO agree on interface, implement
+    def parse(self, filepath: str) -> (Symbols, List[Clause]):
         with open(filepath) as f:
-            for line in f.readlines():
+            num_variables = -1
+            num_clauses = -1
+            # Read comments and variable/clause number dec
+            line = f.readline().strip()
+            while line:
                 if len(line) <= 0:
                     raise FileFormatError("No empty lines allowed")
                 elif line[0] == 'c':
-                    logger.info(line) # todo
+                    pass # don't process comments
                 elif line[0] == 'p':
-                    logger.info(line) # todo
-                else:
-                    logger.info(line) # todo
-        return [], []
+                    tokens = line.split()
+                    if len(tokens) != 4:
+                        raise FileFormatError("Incorrect declaration for clauses")
+                    num_variables = int(tokens[2])
+                    num_clauses = int(tokens[3])
+
+                    if num_variables == -1 and num_clauses == -1:
+                        raise FileFormatError("Clause declaration before variable/clause number declaration")
+                    # Read clauses and variables
+                    clauses = []
+                    symbols = Symbols()
+                    for _ in range(num_clauses):
+                        tokens = f.readline().strip().split()
+                        if tokens[-1] != '0':
+                            raise FileFormatError("Clause declaration must end with 0")
+                        sbl_lst = list(map(self.parse_symbol, tokens[:-1]))
+                        clauses.append(Clause(sbl_lst))
+                        # Add read symbols as we go
+                        for s in sbl_lst:
+                            symbols.add(s)
+                    return symbols, clauses
+
+                line = f.readline().strip()
+        raise FileFormatError("You should not be here")
+
+    def parse_symbol(self, sbl: str):
+        if sbl and sbl[0] == '-' and sbl[1:].isalnum():
+            return Symbol(sbl[1:], False)
+        elif sbl.isalnum():
+            return Symbol(sbl, True)
+        raise FileFormatError(f"Wrong symbol syntax {sbl}")

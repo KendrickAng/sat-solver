@@ -9,6 +9,10 @@ class Logger:
     @classmethod
     def set_level(cls, level) -> None:
         logger = logging.getLogger()
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('[%(funcName)s][%(levelname)s]: %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
         if level is None or level == "INFO":
             logger.setLevel(logging.INFO)
             return
