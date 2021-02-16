@@ -8,6 +8,10 @@ class Symbol:
         self.literal = literal
         self.is_pos = is_pos
 
+    # Negates the symbol. Symbol(A, true).neg() --> Symbol(A, false)
+    def neg(self):
+        return Symbol(self.literal, not self.is_pos)
+
     # Allow "if symbol in symbol_list"
     def __eq__(self, other):
         return self.literal == other.literal and self.is_pos == other.is_pos
@@ -20,3 +24,4 @@ class Symbol:
         if self.is_pos:
             return f"{self.literal}"
         return f"-{self.literal}"
+

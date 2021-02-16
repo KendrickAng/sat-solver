@@ -8,3 +8,9 @@ class Clause:
     # Override this change string representation
     def __repr__(self):
         return str(self.symbol_list)
+
+    # Allow "for symbol in clause"
+    def __iter__(self):
+        return self.symbol_list.__iter__()
+
+

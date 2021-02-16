@@ -1,12 +1,18 @@
 from internal.sat.model import Model
 from internal.sat.symbols import Symbols
 from internal.sat.formula import Formula
-from internal.sat.constants import UNSAT, CONFLICT, SAT
+from internal.sat.constants import TRUE, FALSE, UNASSIGNED, UNSAT, CONFLICT, SAT
 from internal.utils.logger import Logger
 
 logger = Logger.get_logger()
 
 class Solver:
+    """
+    Solver for CDCL algorithm.
+    Symbols = the remaining unassigned symbols.
+    Clauses = the set of clauses.
+    Model = the truth assignments of all variables. Starts with all initialised to None.
+    """
     def __init__(self, symbols: Symbols, formula: Formula, model: Model):
         self.symbols = symbols
         self.formula = formula
@@ -19,7 +25,7 @@ class Solver:
         if up_result == CONFLICT:
             return UNSAT
         dl = 0 # decision level
-        while not self.all_variables_assigned(self.formula, self.model):
+        while not Solver.all_variables_assigned(self.formula, self.model):
 
             # decide stage
             var, val = self.pick_branching_variable(self.formula, self.model)
@@ -39,3 +45,14 @@ class Solver:
                     # decrement decision level due to backtracking
                     dl = lvl
         return SAT
+
+    @classmethod
+    def all_variables_assigned(cls, formula: Formula, model: Model) -> bool:
+        """
+        All variables are assigned when every symbol clauses have an assignment in model.
+        """
+        for symbol in formula.get_all_symbols():
+            if model[symbol] == UNASSIGNED:
+                return False
+        return True
+

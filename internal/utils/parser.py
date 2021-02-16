@@ -12,6 +12,9 @@ class Parser:
         pass
 
     def parse(self, filepath: str) -> (Symbols, List[Clause]):
+        """
+        Returns symbols parsed IN THE FILE and the clause list.
+        """
         with open(filepath) as f:
             num_variables = -1
             num_clauses = -1

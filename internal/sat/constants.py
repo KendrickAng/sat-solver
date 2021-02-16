@@ -1,3 +1,6 @@
-UNSAT = 0
-SAT = 1
-CONFLICT = 2
+TRUE = True
+FALSE = False
+UNASSIGNED = None
+UNSAT = 2
+SAT = 3
+CONFLICT = 4
