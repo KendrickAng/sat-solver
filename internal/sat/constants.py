@@ -1,0 +1,3 @@
+UNSAT = 0
+SAT = 1
+CONFLICT = 2
