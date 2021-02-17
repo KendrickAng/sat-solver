@@ -17,7 +17,7 @@ class Model:
         mapping = {}
         for s in symbols:
             mapping[s] = UNASSIGNED
-            mapping[s.neg()] = UNASSIGNED
+            mapping[s.negate()] = UNASSIGNED
         return Model(mapping)
 
     def __init__(self, mapping: Dict[Symbol, bool]):
@@ -25,9 +25,9 @@ class Model:
 
     def extend(self, s: Symbol, val: bool):
         assert s in self.mapping
-        assert s.neg() in self.mapping
+        assert s.negate() in self.mapping
         self.mapping[s] = val
-        self.mapping[s.neg()] = not val
+        self.mapping[s.negate()] = not val
 
     def get_clause_status(self, c: Clause) -> bool:
         """

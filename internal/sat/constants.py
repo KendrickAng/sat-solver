@@ -1,4 +1,4 @@
 TRUE = True
 FALSE = False
 UNASSIGNED = None
-CONFLICT = 4
+CONFLICT = -1

@@ -21,14 +21,14 @@ class TestSolver(unittest.TestCase):
         c1 = Clause([a, b])
         c2 = Clause([c, d])
         f = Formula([c1, c2])
-        m_assigned = Model.from_mapping({a: TRUE, a.neg(): FALSE,
-                                         b: TRUE, b.neg(): FALSE,
-                                         c: TRUE, c.neg(): FALSE,
-                                         d: TRUE, d.neg(): FALSE})
-        m_unassigned = Model.from_mapping({ a: TRUE, a.neg(): FALSE,
-                                            b: TRUE, b.neg(): FALSE,
-                                            c: UNASSIGNED, c.neg(): UNASSIGNED,
-                                            d: TRUE, d.neg(): FALSE})
+        m_assigned = Model.from_mapping({a: TRUE, a.negate(): FALSE,
+                                         b: TRUE, b.negate(): FALSE,
+                                         c: TRUE, c.negate(): FALSE,
+                                         d: TRUE, d.negate(): FALSE})
+        m_unassigned = Model.from_mapping({a: TRUE, a.negate(): FALSE,
+                                           b: TRUE, b.negate(): FALSE,
+                                           c: UNASSIGNED, c.negate(): UNASSIGNED,
+                                           d: TRUE, d.negate(): FALSE})
         self.assertEqual(Solver.all_variables_assigned(f, m_assigned), True, "all variables should be assigned")
         self.assertEqual(Solver.all_variables_assigned(f, m_unassigned), False, "there should be unassigned variables")
 
