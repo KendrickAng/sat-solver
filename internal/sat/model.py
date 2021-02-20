@@ -1,5 +1,5 @@
 from typing import List, Dict
-from internal.sat.constants import SAT, UNSAT, UNASSIGNED, TRUE, FALSE
+from internal.sat.constants import UNASSIGNED, TRUE, FALSE
 from internal.sat.symbol import Symbol
 from internal.sat.clause import Clause
 

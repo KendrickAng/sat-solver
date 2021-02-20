@@ -32,4 +32,20 @@ class TestSolver(unittest.TestCase):
         self.assertEqual(Solver.all_variables_assigned(f, m_assigned), True, "all variables should be assigned")
         self.assertEqual(Solver.all_variables_assigned(f, m_unassigned), False, "there should be unassigned variables")
 
+    def test_unit_propagate(self):
+        return True
 
+    def test_pick_branching_variable(self):
+        return True
+
+    def test_conflict_analysis(self):
+        return True
+
+    def test_backtrack(self):
+        return True
+
+    def test_resolution(self):
+        return True
+
+    def test_to_positive(self):
+        return True
