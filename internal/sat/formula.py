@@ -21,3 +21,7 @@ class Formula:
     # Returns all clauses, original and learnt included.
     def get_clauses_with_learnt(self) -> List[Clause]:
         return self.clist + self.learnt_clist
+
+    def add_learnt_clause(self, c: Clause):
+        self.learnt_clist.append(c)
+

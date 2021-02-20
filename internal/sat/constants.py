@@ -1,4 +1,3 @@
 TRUE = True
 FALSE = False
 UNASSIGNED = None
-CONFLICT = -1

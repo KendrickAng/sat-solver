@@ -5,8 +5,8 @@ from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.formula import Formula
 from internal.sat.clause import Clause
-from internal.sat.implication_graph import ImplicationGraph
-from internal.sat.constants import TRUE, FALSE, UNASSIGNED, CONFLICT
+from internal.sat.state_manager import StateManager
+from internal.sat.constants import TRUE, FALSE, UNASSIGNED
 from internal.utils.logger import Logger
 
 logger = Logger.get_logger()
@@ -19,36 +19,38 @@ class Solver:
     Model = the truth assignments of ALL variables (positive & negative), all initialised to None.
     """
     def __init__(self, symbols: Symbols, formula: Formula, model: Model):
-        self.symbols = symbols
+        self.state = StateManager(symbols)
         self.formula = formula
         self.model = model
 
-    # TODO complete algorithm
     def cdcl(self) -> bool:
-        graph = ImplicationGraph()
         dl = 0 # decision level
-        conf_clause = Solver.unit_propagate(self.formula, self.symbols, self.model, graph, dl)
-        if conf_clause:
-            return FALSE
 
         while not Solver.all_variables_assigned(self.formula, self.model):
-            # decide stage
-            var, val = Solver.pick_branching_variable(self.symbols)
-            dl += 1
-            self.model.extend(var, val)
-
             # deduce stage
-            conf_clause = Solver.unit_propagate(self.formula, self.symbols, self.model, graph, dl)
+            # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
+            conf_clause = Solver.unit_propagate(self.formula, self.model, self.state, dl)
 
             # diagnose stage
             if conf_clause:
-                learnt, lvl = Solver.conflict_analysis(conf_clause, graph)
+                learnt, lvl = Solver.conflict_analysis(conf_clause, self.state)
                 if lvl < 0:
                     return FALSE
                 else:
-                    Solver.backtrack(self.formula, self.model, lvl)
+                    # revert history to before we made the mistake
+                    Solver.backtrack(self.state, lvl, dl)
+                    # avoid repeating the same mistake
+                    self.formula.add_learnt_clause(learnt)
                     # decrement decision level due to backtracking
                     dl = lvl
+            elif Solver.all_variables_assigned(self.formula, self.model):
+                break
+            else:
+                # decide stage
+                var, val = Solver.pick_branching_variable(self.state, dl)
+                self.model.extend(var, val)
+                dl += 1
+
         return TRUE
 
     @classmethod
@@ -62,7 +64,7 @@ class Solver:
         return True
 
     @classmethod
-    def unit_propagate(cls, f: Formula, s: Symbols, m: Model, g: ImplicationGraph, dl: int) -> Clause:
+    def unit_propagate(cls, f: Formula, m: Model, g: StateManager, dl: int) -> Clause:
         """
         Returns None if no conflict is detected, or the conflicting clause otherwise.
         """
@@ -95,11 +97,17 @@ class Solver:
                     g.add_node(symbol_pos, val, antecedent, dl)
 
     @classmethod
-    def pick_branching_variable(cls, symbols: Symbols):
-        return symbols.pop_fifo()
+    def pick_branching_variable(cls, state: StateManager, dl: int) -> (Symbol, bool):
+        """
+        Picks new branching variable and updates history. dl for recording purposes.
+        """
+        sbl, val = state.get_unassigned_sbl_fifo()
+        state.add_node(sbl, val, None, dl)
+        return sbl, val
+
 
     @classmethod
-    def conflict_analysis(cls, c: Clause, g: ImplicationGraph, dl: int) -> (Clause, int):
+    def conflict_analysis(cls, c: Clause, g: StateManager, dl: int) -> (Clause, int):
         """
         Conflict analysis involves finding the first Unique Implication Point.
         A UIP is a node in the implication graph other than the conflict node that is on all paths from the current
@@ -122,15 +130,17 @@ class Solver:
             done_sbls_pos.add(conflict_sbl_pos)
             curr_level_symbols.extend(g.get_parent_list_at_lvl(conflict_sbl_pos, dl))
 
-        lbd = [g.get_level(sbl.to_positive()) for sbl in learnt_clause] # TODO Assume every symbol in learnt clause is recorded in graph
+        # We assume every symbol in learnt clause is recorded in graph
+        lbd = [g.get_level(sbl.to_positive()) for sbl in learnt_clause]
 
-        # TODO NOT SURE WHETHER DL-1 OR 0
-        return learnt_clause, dl-1 if len(lbd) == 1 else learnt_clause, nlargest(2, lbd)[-1]
+        # NOT SURE WHETHER DL-1 OR 0
+        return learnt_clause, 0 if len(lbd) == 1 else learnt_clause, nlargest(2, lbd)[-1]
 
     @classmethod
-    def backtrack(cls):
-        # TODO migrate history from graph to here, also seems we don't need self.symbols
-        pass
+    def backtrack(cls, graph: StateManager, dl_lower: int, dl_upper: int):
+        assert dl_lower <= dl_upper
+        # remove the branching history and implication graph history
+        graph.revert_history(dl_lower, dl_upper)
 
     @classmethod
     def resolution(cls, c1: Clause, c2: Clause, s: Symbol) -> Clause:
