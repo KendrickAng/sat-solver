@@ -130,7 +130,7 @@ class TestSolver(unittest.TestCase):
         conf_clause = Solver.unit_propagate(f, m_actual, sm_actual, 4)
         self.assertEqual(conf_clause, w6)
 
-        # test conflict analysis
+        # EXTRA: test conflict analysis
         learnt_clause, bt_lvl = Solver.conflict_analysis(conf_clause, sm_actual, 4)
         self.assertEqual(learnt_clause, Clause([x2.negate(), x7.negate()]))
         self.assertEqual(bt_lvl, 2)
@@ -147,17 +147,31 @@ class TestSolver(unittest.TestCase):
     def test_resolution(self):
         """
         Resolution algorithm.
-        [-7,-9] and [-2,-7,9]       -> [-2,-7]
+        [-7,-9] and [-2,-7,9] -> [-2,-7]
+        [-7,-9] and [-2,8] -> Exception
         """
         x2 = Symbol("2", TRUE)
         x7 = Symbol("7", TRUE)
+        x8 = Symbol("8", TRUE)
         x9 = Symbol("9", TRUE)
         c1 = Clause([x7.negate(),x9.negate()])
         c2 = Clause([x2.negate(),x7.negate(),x9])
+        c3 = Clause([x2.negate(),x8])
         res1_actual = Solver.resolution(c1, c2, x9)
         res1_expected = Clause([x2.negate(),x7.negate()])
+        # Normal resolution
         self.assertEqual(res1_actual, res1_expected)
-        return True
+        # Resolution with no common symbol
+        self.assertRaises(Exception, Solver.resolution, c1, c3, x7)
 
     def test_to_positive(self):
+        """
+        Solver.to_positive(1, TRUE) -> (1, TRUE)
+        Solver.to_positive(1, FALSE) -> (1, FALSE)
+        Solver.to_positive(-1, TRUE) -> (1, FALSE)
+        """
+        s = Symbol("1", TRUE)
+        self.assertEqual(Solver.to_positive(s, TRUE), (s, TRUE))
+        self.assertEqual(Solver.to_positive(s, FALSE), (s, FALSE))
+        self.assertEqual(Solver.to_positive(s.negate(), TRUE), (s, FALSE))
         return True

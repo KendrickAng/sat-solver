@@ -137,7 +137,7 @@ class Solver:
         lbd = [g.graph_get_level(sbl.to_positive()) for sbl in learnt_clause]
 
         # NOT SURE WHETHER DL-1 OR 0
-        return learnt_clause, 0 if len(lbd) == 1 else learnt_clause, nlargest(2, lbd)[-1]
+        return (learnt_clause, 0) if len(lbd) == 1 else (learnt_clause, nlargest(2, lbd)[-1])
 
     @classmethod
     def backtrack(cls, state: StateManager, dl_lower: int, dl_upper: int):
