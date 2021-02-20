@@ -3,7 +3,7 @@ from internal.utils.exceptions import ArgumentFormatError
 
 class Logger:
     """
-    Program-wide logger. Instances of Logger should be created using the class methods withLevel.
+    Program-wide logger.
     """
 
     @classmethod

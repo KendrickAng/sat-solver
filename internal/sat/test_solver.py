@@ -7,9 +7,14 @@ from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.solver import Solver
 from internal.sat.constants import TRUE, FALSE, UNASSIGNED
+from internal.utils.logger import Logger
 from collections import deque, defaultdict
 
 class TestSolver(unittest.TestCase):
+    def setUp(self):
+        Logger.set_level("DEBUG")
+        self.logger = Logger.get_logger()
+
     def test_all_variables_assigned(self):
         """
         [[1, 2], [3, 4]]
@@ -125,6 +130,11 @@ class TestSolver(unittest.TestCase):
         conf_clause = Solver.unit_propagate(f, m_actual, sm_actual, 4)
         self.assertEqual(conf_clause, w6)
 
+        # test conflict analysis
+        learnt_clause, bt_lvl = Solver.conflict_analysis(conf_clause, sm_actual, 4)
+        self.assertEqual(learnt_clause, Clause([x2.negate(), x7.negate()]))
+        self.assertEqual(bt_lvl, 2)
+
     def test_pick_branching_variable(self):
         return True
 
@@ -135,6 +145,18 @@ class TestSolver(unittest.TestCase):
         return True
 
     def test_resolution(self):
+        """
+        Resolution algorithm.
+        [-7,-9] and [-2,-7,9]       -> [-2,-7]
+        """
+        x2 = Symbol("2", TRUE)
+        x7 = Symbol("7", TRUE)
+        x9 = Symbol("9", TRUE)
+        c1 = Clause([x7.negate(),x9.negate()])
+        c2 = Clause([x2.negate(),x7.negate(),x9])
+        res1_actual = Solver.resolution(c1, c2, x9)
+        res1_expected = Clause([x2.negate(),x7.negate()])
+        self.assertEqual(res1_actual, res1_expected)
         return True
 
     def test_to_positive(self):

@@ -21,4 +21,5 @@ class Clause:
         return self.symbol_list.__iter__()
 
     def __eq__(self, other):
-        return self.symbol_list == other.symbol_list
+        # order shouldnt matter, and duplicates can be removed in a clause
+        return set(self.symbol_list) == set(other.symbol_list)

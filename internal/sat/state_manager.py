@@ -4,8 +4,11 @@ from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.clause import Clause
 from internal.sat.constants import TRUE
+from internal.utils.logger import Logger
 
 CONFLICT_SYMBOL = Symbol('K', True)
+
+logger = Logger.get_logger()
 
 class StateManager:
     """
@@ -63,14 +66,15 @@ class StateManager:
         During conflict analysis, we need a way to get all implications at a certain level wrt a certain symbol.
         """
         assert s in self.implication_graph
-        return [x.symbol for x in self.implication_graph[s].parent if x.level == dl]
+        parents = self.implication_graph[s].get_parents()
+        return [x.symbol for x in parents if x.level == dl]
 
     # Returns the list of symbols in the clause matching the decision level
     def graph_get_sbls_at_lvl_in_clause(self, dl: int, c: Clause) -> List[Symbol]:
         ret = []
+        assert dl in self.history, f"symbols_at_level dl {dl} not in history"
         for symbol in c:
-            assert dl in self.history, f"symbols_at_level dl {dl} not in history"
-            if symbol.to_positive() in self.history[dl]:
+            if symbol.to_positive() in self.history.get_history_at_lvl(dl):
                 ret.append(symbol)
         return ret
 
@@ -90,7 +94,7 @@ class StateManager:
         assert dl_lower <= dl_upper
         # range(1,5): 1 2 3 4
         for i in range(dl_lower + 1, dl_upper + 1):
-            q = self.history.get_history_queue(i)
+            q = self.history.get_history_at_lvl(i)
             while len(q) > 0:
                 sbl = q.popleft()
                 self.sbls_mark_unassigned(sbl)
@@ -133,6 +137,9 @@ class ImplicationGraphNode:
     def add_child(self, node: 'ImplicationGraphNode'):
         self.children.append(node)
 
+    def get_parents(self):
+        return self.parents
+
     def __eq__(self, other):
         return self.parents == other.parents and self.children == other.children and\
                 self.antecedent == other.antecedent and self.symbol == other.symbol and\
@@ -155,9 +162,12 @@ class History:
         assert s.is_pos, f"add_history: {s} is not positive"  # simplify implementation
         self.history[dl].append(s)
 
-    def get_history_queue(self, dl: int) -> deque:
+    def get_history_at_lvl(self, dl: int) -> deque:
         assert dl in self.history, f"get_history_queue: level {dl} not in history"
         return self.history[dl]
+
+    def __iter__(self):
+        return self.history.__iter__()
 
     def __repr__(self):
         return self.history.__repr__()

@@ -33,7 +33,7 @@ class Solver:
 
             if conf_clause:
                 # diagnose stage
-                learnt, lvl = Solver.conflict_analysis(conf_clause, self.state)
+                learnt, lvl = Solver.conflict_analysis(conf_clause, self.state, dl)
                 if lvl < 0:
                     return FALSE
                 else:
@@ -147,9 +147,12 @@ class Solver:
 
     @classmethod
     def resolution(cls, c1: Clause, c2: Clause, s: Symbol) -> Clause:
+        assert c1 is not None
+        assert c2 is not None
         assert (s in c1 and s.negate() in c2) or (s.negate() in c1 and s in c2)
-        return Clause([sbl for sbl in c1 if sbl.literal != s.literal] +
-                      [sbl for sbl in c2 if sbl.literal != s.literal])
+        sbl_list_no_dups = list(set([sbl for sbl in c1 if sbl.literal != s.literal] +
+                                    [sbl for sbl in c2 if sbl.literal != s.literal]))
+        return Clause(sbl_list_no_dups)
 
     @classmethod
     def to_positive(cls, s: Symbol, val: bool) -> (Symbol, bool):
