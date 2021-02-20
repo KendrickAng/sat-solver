@@ -135,8 +135,36 @@ class TestSolver(unittest.TestCase):
         self.assertEqual(learnt_clause, Clause([x2.negate(), x7.negate()]))
         self.assertEqual(bt_lvl, 2)
 
+        # EXTRA: backtrack to level 2 with magic number 4 (current dl)
+        l1 = len(sm_actual.unassigned_symbols)
+        l2 = len(sm_actual.history.get_history_at_lvl(3))
+        l3 = len(sm_actual.history.get_history_at_lvl(4))
+        Solver.backtrack(sm_actual, bt_lvl, 4)
+        l4 = len(sm_actual.unassigned_symbols)
+        self.assertTrue(4 not in sm_actual.history)
+        self.assertTrue(3 not in sm_actual.history)
+        self.assertTrue(2 in sm_actual.history)
+        self.assertTrue(l4 == l1 + l2 + l3)
+
     def test_pick_branching_variable(self):
-        return True
+        symbols = Symbols() # unassigned symbols
+        x1 = Symbol("1", True)
+        x2 = Symbol("2", True)
+        x3 = Symbol("3", True)
+        symbols.add(x1)
+        symbols.add(x2)
+        symbols.add(x3)
+        implication_graph = {}
+        history = History()
+        sm = StateManager.from_values(symbols, implication_graph, history)
+        sbl, val = Solver.pick_branching_variable_update_state(sm, 1)
+        self.assertTrue(sbl == x1 or sbl == x2 or sbl == x3)
+        self.assertTrue(val is TRUE or val is FALSE)
+        # one symbol should have been removed from unassigned symbols
+        self.assertTrue(len(sm.unassigned_symbols) == 2)
+        # implication graph and history should be updated with branching variable
+        self.assertTrue(len(sm.history) == 1)
+        self.assertTrue(len(sm.implication_graph) == 1)
 
     def test_conflict_analysis(self):
         return True

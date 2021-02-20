@@ -22,7 +22,9 @@ class StateManager:
         return StateManager(s, ig, h)
 
     def __init__(self, symbols: Symbols, implication_graph:dict=None, h:'History'=None):
-        # for easier picking of branching variable
+        # for easier picking of branching variable (only positive)
+        for s in symbols:
+            assert s.is_pos
         self.unassigned_symbols = symbols
         # makes it easier to match with symbols in a clause, and deleting based on symbols inferred at a level.
         # Symbol (only positive) -> ImplicationNode
@@ -99,6 +101,7 @@ class StateManager:
                 sbl = q.popleft()
                 self.sbls_mark_unassigned(sbl)
                 self.implication_graph.pop(sbl)
+            self.history.del_history_at_lvl(i)
 
     def sbls_mark_unassigned(self, s: Symbol):
         self.unassigned_symbols.add(s)
@@ -166,11 +169,17 @@ class History:
         assert dl in self.history, f"get_history_queue: level {dl} not in history"
         return self.history[dl]
 
+    def del_history_at_lvl(self, dl: int):
+        self.history.pop(dl)
+
     def __iter__(self):
         return self.history.__iter__()
 
     def __repr__(self):
         return self.history.__repr__()
+
+    def __len__(self):
+        return self.history.__len__()
 
     def __eq__(self, other):
         return self.history == other.history

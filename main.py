@@ -17,14 +17,15 @@ if not args.input_file:
     exit(-1)
 
 Logger.set_level(args.log_level)
+logger = Logger.get_logger()
 
 # parse
 file_dir = os.path.dirname(__file__)
 file_path = os.path.join(file_dir, "input", args.input_file)
 prs = Parser()
-symbols, clauses = prs.parse(file_path)
+symbols, formula = prs.parse(file_path)
 
 # evaluate
 model = Model.from_symbols(symbols)
-solver = Solver(symbols, clauses, model)
-solver.cdcl()
+solver = Solver(symbols, formula, model)
+logger.info(f"RESULT: {solver.cdcl()}")

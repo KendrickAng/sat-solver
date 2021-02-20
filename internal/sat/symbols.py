@@ -13,7 +13,6 @@ class Symbols:
     def __init__(self, d: deque=None):
         self.symbols = deque() if d is None else d # may change to set
 
-
     def add(self, s: Symbol):
         pos = s.to_positive()
         if pos not in self.symbols:
@@ -33,6 +32,9 @@ class Symbols:
 
     def __repr__(self):
         return self.symbols.__repr__()
+
+    def __len__(self):
+        return self.symbols.__len__()
 
     def __eq__(self, other):
         return self.symbols == other.symbols

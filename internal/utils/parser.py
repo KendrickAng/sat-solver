@@ -4,6 +4,7 @@ from internal.utils.exceptions import FileFormatError
 from internal.sat.clause import Clause
 from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
+from internal.sat.formula import Formula
 
 logger = Logger.get_logger()
 
@@ -11,7 +12,7 @@ class Parser:
     def __init__(self):
         pass
 
-    def parse(self, filepath: str) -> (Symbols, List[Clause]):
+    def parse(self, filepath: str) -> (Symbols, Formula):
         """
         Returns symbols parsed IN THE FILE and the clause list.
         """
@@ -45,8 +46,8 @@ class Parser:
                         clauses.append(Clause(sbl_lst))
                         # Add read symbols as we go
                         for s in sbl_lst:
-                            symbols.add(s)
-                    return symbols, clauses
+                            symbols.add(s.to_positive()) # changing it to positive shouldn't affect anything
+                    return symbols, Formula(clauses)
 
                 line = f.readline().strip()
         raise FileFormatError("You should not be here")
