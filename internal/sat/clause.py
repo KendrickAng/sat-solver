@@ -20,4 +20,5 @@ class Clause:
     def __iter__(self):
         return self.symbol_list.__iter__()
 
-
+    def __eq__(self, other):
+        return self.symbol_list == other.symbol_list

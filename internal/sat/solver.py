@@ -24,15 +24,15 @@ class Solver:
         self.model = model
 
     def cdcl(self) -> bool:
-        dl = 0 # decision level
+        dl = 0 # no guesses have been made
 
         while not Solver.all_variables_assigned(self.formula, self.model):
             # deduce stage
             # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
             conf_clause = Solver.unit_propagate(self.formula, self.model, self.state, dl)
 
-            # diagnose stage
             if conf_clause:
+                # diagnose stage
                 learnt, lvl = Solver.conflict_analysis(conf_clause, self.state)
                 if lvl < 0:
                     return FALSE
@@ -47,9 +47,9 @@ class Solver:
                 break
             else:
                 # decide stage
-                var, val = Solver.pick_branching_variable(self.state, dl)
-                self.model.extend(var, val)
                 dl += 1
+                var, val = Solver.pick_branching_variable_update_state(self.state, dl)
+                self.model.extend(var, val)
 
         return TRUE
 
@@ -64,7 +64,7 @@ class Solver:
         return True
 
     @classmethod
-    def unit_propagate(cls, f: Formula, m: Model, g: StateManager, dl: int) -> Clause:
+    def unit_propagate(cls, f: Formula, m: Model, state: StateManager, dl: int) -> Clause:
         """
         Returns None if no conflict is detected, or the conflicting clause otherwise.
         """
@@ -79,7 +79,7 @@ class Solver:
                     continue
                 elif clause_status == FALSE:
                     # one clause false -> formula false
-                    g.add_conflict_node(clause, dl)
+                    state.graph_add_conf_node(clause, dl)
                     return clause
                 else:
                     # filter unit clauses
@@ -94,15 +94,17 @@ class Solver:
                     symbol, antecedent = q.popleft()
                     symbol_pos, val = Solver.to_positive(symbol, TRUE)
                     m.extend(symbol_pos, val)
-                    g.add_node(symbol_pos, val, antecedent, dl)
+                    state.graph_add_node(symbol_pos, val, antecedent, dl)
+                    state.sbls_mark_assigned(symbol_pos)
 
     @classmethod
-    def pick_branching_variable(cls, state: StateManager, dl: int) -> (Symbol, bool):
+    def pick_branching_variable_update_state(cls, state: StateManager, dl: int) -> (Symbol, bool):
         """
         Picks new branching variable and updates history. dl for recording purposes.
         """
-        sbl, val = state.get_unassigned_sbl_fifo()
-        state.add_node(sbl, val, None, dl)
+        sbl, val = state.sbls_get_unassigned_sbl_fifo()
+        state.graph_add_node(sbl, val, None, dl)
+        state.sbls_mark_assigned(sbl)
         return sbl, val
 
 
@@ -120,27 +122,28 @@ class Solver:
             return None, -1
 
         done_sbls_pos = set()
-        curr_level_symbols = deque(g.get_symbols_at_lvl_in_clause(dl, c))
+        curr_level_symbols = deque(g.graph_get_sbls_at_lvl_in_clause(dl, c))
         learnt_clause = c
-        while len(g.get_symbols_at_lvl_in_clause(dl, learnt_clause)) != 1:
+        while len(g.graph_get_sbls_at_lvl_in_clause(dl, learnt_clause)) != 1:
             conflict_sbl = curr_level_symbols.popleft()
             conflict_sbl_pos = conflict_sbl.to_positive()
-            clause = g.get_antecedent(conflict_sbl_pos)
-            learnt_clause = Solver.resolution(learnt_clause, clause, conflict_sbl_pos)
-            done_sbls_pos.add(conflict_sbl_pos)
-            curr_level_symbols.extend(g.get_parent_list_at_lvl(conflict_sbl_pos, dl))
+            if conflict_sbl_pos not in done_sbls_pos:
+                clause = g.graph_get_antecedent(conflict_sbl_pos)
+                learnt_clause = Solver.resolution(learnt_clause, clause, conflict_sbl_pos)
+                done_sbls_pos.add(conflict_sbl_pos)
+                curr_level_symbols.extend(g.graph_get_parent_list_at_lvl(conflict_sbl_pos, dl))
 
         # We assume every symbol in learnt clause is recorded in graph
-        lbd = [g.get_level(sbl.to_positive()) for sbl in learnt_clause]
+        lbd = [g.graph_get_level(sbl.to_positive()) for sbl in learnt_clause]
 
         # NOT SURE WHETHER DL-1 OR 0
         return learnt_clause, 0 if len(lbd) == 1 else learnt_clause, nlargest(2, lbd)[-1]
 
     @classmethod
-    def backtrack(cls, graph: StateManager, dl_lower: int, dl_upper: int):
+    def backtrack(cls, state: StateManager, dl_lower: int, dl_upper: int):
         assert dl_lower <= dl_upper
         # remove the branching history and implication graph history
-        graph.revert_history(dl_lower, dl_upper)
+        state.revert_history(dl_lower, dl_upper)
 
     @classmethod
     def resolution(cls, c1: Clause, c2: Clause, s: Symbol) -> Clause:
@@ -155,4 +158,7 @@ class Solver:
         to_positive(Symbol(A, False), True)) -> Symbol(A, True), False
         to_positive(Symbol(A, True), False)) -> Symbol(A, True), False
         """
-        return s, val if s.is_pos else s.negate(), not val
+        if s.is_pos:
+            return s, val
+        else:
+            return s.negate(), not val

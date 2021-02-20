@@ -6,6 +6,7 @@ from internal.sat.clause import Clause
 class Model:
     """
     A Model represents a mapping of symbols in a formula to its truth assignment {True, False}.
+    Models should always have a key for every symbol in a formula, postive and negative.
     """
 
     @classmethod
@@ -63,3 +64,6 @@ class Model:
         assert item in self.mapping
 
         return self.mapping[item]
+
+    def __eq__(self, other):
+        return self.mapping == other.mapping
