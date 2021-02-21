@@ -1,5 +1,7 @@
 from collections import deque, defaultdict
 from typing import List
+
+from internal.sat.model import Model
 from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.clause import Clause
@@ -88,7 +90,7 @@ class StateManager:
         assert s in self.implication_graph, f"get_antecedent {s} not in graph"
         return self.implication_graph[s].antecedent
 
-    def revert_history(self, dl_lower: int, dl_upper: int):
+    def revert_history(self, model: Model, dl_lower: int, dl_upper: int):
         """
         Removes all implied nodes and branching nodes NOT INCLUDING dl_from, UP TO AND INCLUDING dl_to
         Also reverts all symbols to their unassigned state, if any.
@@ -101,6 +103,7 @@ class StateManager:
         logger.trace(f"Graph {self.implication_graph}")
         logger.trace(f"Unasgn Sbls {self.unassigned_symbols}")
         logger.trace(f"History {self.history}")
+        logger.trace(f"Model {model}")
         for i in range(dl_lower + 1, dl_upper + 1):
             q = self.history.get_history_at_lvl(i)
             while len(q) > 0:
@@ -111,11 +114,14 @@ class StateManager:
         # removes all nodes in children list which have been deleted.
         symbols_left = set(self.implication_graph.keys())
         for node in self.implication_graph.values():
-            node.update_children(symbols_left)
+            node.revert_children(to_keep=symbols_left)
+        # revert model
+        model.revert_model(to_keep=symbols_left)
         logger.trace(f"Reverted History from {dl_lower} to {dl_upper}")
         logger.trace(f"New Graph {self.implication_graph}")
         logger.trace(f"New Unasgn Sbls {self.unassigned_symbols}")
         logger.trace(f"New History {self.history}")
+        logger.trace(f"New Model {model}")
 
     def get_history(self, dl: int):
         return self.history.get_history_at_lvl(dl)
@@ -157,7 +163,7 @@ class ImplicationGraphNode:
     def add_child(self, node: 'ImplicationGraphNode'):
         self.children.append(node)
 
-    def update_children(self, to_keep: set):
+    def revert_children(self, to_keep: set):
         self.children = [x for x in self.children if x.symbol in to_keep]
 
     def get_parents(self):

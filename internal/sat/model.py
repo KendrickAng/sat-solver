@@ -1,7 +1,11 @@
-from typing import List, Dict
+from typing import List, Dict, Set
 from internal.sat.constants import UNASSIGNED, TRUE, FALSE
+from internal.sat.formula import Formula
 from internal.sat.symbol import Symbol
 from internal.sat.clause import Clause
+from internal.utils.logger import Logger
+
+logger = Logger.get_logger()
 
 class Model:
     """
@@ -57,6 +61,29 @@ class Model:
                     s = sbl
             return True, s
         return False, None
+
+    def revert_model(self, to_keep: Set[Symbol]):
+        logger.trace(f"Before model revert {self.shorten()}")
+        logger.trace(f"Keeping {to_keep}")
+        for key in self.mapping.keys():
+            if key.to_positive() in to_keep:
+                continue
+            self.mapping[key] = UNASSIGNED
+            self.mapping[key.negate()] = UNASSIGNED
+        logger.trace(f"After model revert {self.shorten()}")
+
+    # Returns a shortened version of the model (only true symbols)
+    def shorten(self) -> str:
+        return str([s for s in self.mapping.keys() if self.mapping[s] is True])
+
+    def get_formula_status(self, f: Formula) -> bool:
+        for clause in f.get_clauses_with_learnt():
+            status = self.get_clause_status(clause)
+            assert status is not UNASSIGNED
+            if status == FALSE:
+                return FALSE
+        return TRUE
+
 
     # Implement evaluation of self[key].
     def __getitem__(self, item):
