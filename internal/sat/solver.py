@@ -6,7 +6,7 @@ from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.formula import Formula
 from internal.sat.clause import Clause
-from internal.sat.state_manager import StateManager, CONFLICT_SYMBOL
+from internal.sat.state_manager import StateManager
 from internal.sat.constants import TRUE, FALSE, UNASSIGNED
 from internal.utils.logger import Logger
 
@@ -97,7 +97,6 @@ class Solver:
                 elif clause_status == FALSE:
                     # one clause false -> formula false
                     logger.debug(f"Found UNSAT clause {clause}")
-                    state.graph_add_conf_node(clause, dl)
                     return clause
                 else:
                     # filter unit clauses
@@ -148,9 +147,7 @@ class Solver:
             """
             assign_history = list(g.get_history(dl))
             for s in reversed(assign_history):
-                if s == CONFLICT_SYMBOL:
-                    continue
-                elif s in pool or s.negate() in pool:
+                if s in pool or s.negate() in pool:
                     return s, [x for x in pool if x.literal != s.literal]
 
         # Conflict at first unit propagation, not solvable!

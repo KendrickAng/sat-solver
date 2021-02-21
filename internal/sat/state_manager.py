@@ -6,8 +6,6 @@ from internal.sat.clause import Clause
 from internal.sat.constants import TRUE
 from internal.utils.logger import Logger
 
-CONFLICT_SYMBOL = Symbol('K', True)
-
 logger = Logger.get_logger()
 
 class StateManager:
@@ -60,9 +58,6 @@ class StateManager:
                     impl_node.add_parent(self.implication_graph[symbol_pos])
                     self.implication_graph[symbol_pos].add_child(impl_node)
 
-    def graph_add_conf_node(self, antecedent: Clause, dl: int):
-        self.graph_add_node(CONFLICT_SYMBOL, None, antecedent, dl)
-
     def graph_get_parent_symbols_at_lvl(self, s: Symbol, dl: int) -> List[Symbol]:
         """
         During conflict analysis, we need a way to get all implications at a certain level wrt a certain symbol.
@@ -97,17 +92,30 @@ class StateManager:
         """
         Removes all implied nodes and branching nodes NOT INCLUDING dl_from, UP TO AND INCLUDING dl_to
         Also reverts all symbols to their unassigned state, if any.
+        ALso removes all nodes in children list which have been deleted.
+        Also reverts the model.
         """
         assert dl_lower <= dl_upper
         # range(1,5): 1 2 3 4
+        logger.trace(f"Reverting History from {dl_lower} to {dl_upper}")
+        logger.trace(f"Graph {self.implication_graph}")
+        logger.trace(f"Unasgn Sbls {self.unassigned_symbols}")
+        logger.trace(f"History {self.history}")
         for i in range(dl_lower + 1, dl_upper + 1):
             q = self.history.get_history_at_lvl(i)
             while len(q) > 0:
                 sbl = q.popleft()
                 self.implication_graph.pop(sbl)
-                if sbl != CONFLICT_SYMBOL: # conflict symbol should never be unassigned...
-                    self.sbls_mark_unassigned(sbl)
+                self.sbls_mark_unassigned(sbl)
             self.history.del_history_at_lvl(i)
+        # removes all nodes in children list which have been deleted.
+        symbols_left = set(self.implication_graph.keys())
+        for node in self.implication_graph.values():
+            node.update_children(symbols_left)
+        logger.trace(f"Reverted History from {dl_lower} to {dl_upper}")
+        logger.trace(f"New Graph {self.implication_graph}")
+        logger.trace(f"New Unasgn Sbls {self.unassigned_symbols}")
+        logger.trace(f"New History {self.history}")
 
     def get_history(self, dl: int):
         return self.history.get_history_at_lvl(dl)
@@ -135,7 +143,7 @@ class ImplicationGraphNode:
     def from_values(cls, s: Symbol, val: bool, dl: int, antecedent: Clause, p: list, c: list):
         return ImplicationGraphNode(s, val, dl, antecedent, p, c)
 
-    def __init__(self, s: Symbol, val: bool, dl: int, antecedent: Clause, p: list=None, c: list=None):
+    def __init__(self, s: Symbol, val: bool, dl: int, antecedent: Clause, p: List['ImplicationGraphNode']=None, c: List['ImplicationGraphNode']=None):
         self.parents = [] if p is None else p
         self.children = [] if c is None else c
         self.antecedent = antecedent # Clause
@@ -148,6 +156,9 @@ class ImplicationGraphNode:
 
     def add_child(self, node: 'ImplicationGraphNode'):
         self.children.append(node)
+
+    def update_children(self, to_keep: set):
+        self.children = [x for x in self.children if x.symbol in to_keep]
 
     def get_parents(self):
         return self.parents
