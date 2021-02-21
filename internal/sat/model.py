@@ -67,3 +67,6 @@ class Model:
 
     def __eq__(self, other):
         return self.mapping == other.mapping
+
+    def __repr__(self):
+        return self.mapping.__repr__()

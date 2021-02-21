@@ -167,7 +167,91 @@ class TestSolver(unittest.TestCase):
         self.assertTrue(len(sm.implication_graph) == 1)
 
     def test_conflict_analysis(self):
-        return True
+        # TODO add test case for UNSAT, unit propagation unit cluase case
+        # TODO https://www.youtube.com/watch?v=DIcRFQ2xzlA&t=369s
+        a = Symbol("a", TRUE)
+        b = Symbol("b", TRUE)
+        c = Symbol("c", TRUE)
+        d = Symbol("d", TRUE)
+        c1 = Clause([a.negate(),b.negate(),c])
+        c2 = Clause([a,b.negate(),c])
+        c3 = Clause([c.negate(),d])
+        c4 = Clause([c.negate(),d.negate()])
+        c5 = Clause([a.negate(),c,d])
+        c6 = Clause([a.negate(),b,d.negate()])
+        c7 = Clause([b,c,d.negate()])
+        c8 = Clause([a,b,d])
+        f = Formula([c1,c2,c3,c4,c5,c6,c7,c8])
+        m = Model.from_mapping({
+            a:FALSE,a.negate():TRUE,
+            b:TRUE,b.negate():FALSE,
+            c:UNASSIGNED,c.negate():UNASSIGNED,
+            d:UNASSIGNED,d.negate():UNASSIGNED
+        })
+        s = Symbols()
+        s.add(c)
+        s.add(d)
+        implication_graph = {
+            a: ImplicationGraphNode(a.negate(),TRUE,1,None),
+            b: ImplicationGraphNode(b,TRUE,2,None)
+        }
+        history = History()
+        history.add_history(1, a)
+        history.add_history(2, b)
+        state = StateManager.from_values(s,implication_graph,history)
+        dl = 2
+        conf_clause = Solver.unit_propagate(f,m,state,2)
+        self.assertEqual(conf_clause, Clause([c.negate(),d.negate()]))
+
+        # conflict clause [-c, -d], now conflict analyze
+        learnt, lvl = Solver.conflict_analysis(conf_clause, state, dl)
+        self.assertEqual(learnt, Clause([c.negate()]))
+        self.assertEqual(lvl, 0)
+
+        Solver.backtrack(state, lvl, dl)
+        f.add_learnt_clause(learnt)
+        dl = lvl # 0
+        self.assertTrue(len(state.history) == 0)
+        self.assertTrue(len(state.implication_graph) == 0)
+        self.assertTrue(len(state.unassigned_symbols) == 4)
+
+        state.graph_add_node(c.negate(),TRUE,None,0) # also updates history
+        state.graph_add_node(a.negate(),TRUE,None,1)
+        state.sbls_mark_assigned(a)
+        state.sbls_mark_assigned(c)
+        m = Model.from_mapping({
+            a:FALSE,a.negate():TRUE,
+            b:UNASSIGNED,b.negate():UNASSIGNED,
+            c:FALSE,c.negate():TRUE,
+            d:UNASSIGNED,d.negate():UNASSIGNED
+        })
+        dl = 1 # Assume we're at dl 1 now
+        conf_clause = Solver.unit_propagate(f,m,state,dl)
+        self.assertEqual(conf_clause, Clause([a,b,d]))
+
+        learnt, lvl = Solver.conflict_analysis(conf_clause,state,dl)
+        self.assertEqual(learnt, Clause([a,c]))
+        self.assertEqual(lvl, 0) # second highest dl: a = 1, c = 0
+
+        Solver.backtrack(state,lvl,dl) # backtrack to dl 0
+        f.add_learnt_clause(learnt)
+        dl = lvl # 0
+        self.assertTrue(len(state.history) == 1)
+        self.assertTrue(len(state.implication_graph) == 1)
+        self.assertTrue(len(state.unassigned_symbols) == 3)
+        m = Model.from_mapping({
+            a:UNASSIGNED,a.negate():UNASSIGNED,
+            b:UNASSIGNED,b.negate():UNASSIGNED,
+            c:FALSE,c.negate():TRUE,
+            d:UNASSIGNED,d.negate():UNASSIGNED
+        })
+
+        conf_clause = Solver.unit_propagate(f,m,state,dl)
+        self.assertEqual(conf_clause, Clause([a.negate(),b,d.negate()]))
+
+        # Formula is unsatisfiable
+        learnt, lvl = Solver.conflict_analysis(conf_clause,state,dl)
+        self.assertEqual(lvl, -1)
 
     def test_backtrack(self):
         return True

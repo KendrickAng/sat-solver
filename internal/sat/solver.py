@@ -1,11 +1,12 @@
 from collections import deque
+from typing import List
 from heapq import nlargest
 from internal.sat.model import Model
 from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.formula import Formula
 from internal.sat.clause import Clause
-from internal.sat.state_manager import StateManager
+from internal.sat.state_manager import StateManager, CONFLICT_SYMBOL
 from internal.sat.constants import TRUE, FALSE, UNASSIGNED
 from internal.utils.logger import Logger
 
@@ -23,35 +24,50 @@ class Solver:
         self.formula = formula
         self.model = model
 
-    def cdcl(self) -> bool:
+    def cdcl(self) -> (bool, Model):
+        logger.info(f"Formula {self.formula}")
+        logger.info(f"Initial model {self.model}")
         dl = 0 # no guesses have been made
 
         while not Solver.all_variables_assigned(self.formula, self.model):
+            logger.info(f"Now at decision level: {dl}")
+
             # deduce stage
             # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
+            logger.info(f"Begin unit propagation")
             conf_clause = Solver.unit_propagate(self.formula, self.model, self.state, dl)
+            logger.info(f"End unit propagation")
 
             if conf_clause:
                 # diagnose stage
+                logger.info(f"Begin conflict analysis on clause {conf_clause}")
                 learnt, lvl = Solver.conflict_analysis(conf_clause, self.state, dl)
+                logger.info(f"End conflict analysis on clause {conf_clause}")
+                logger.debug(f"Decision level reset to {lvl}")
+                logger.debug(f"Learnt {learnt}")
                 if lvl < 0:
-                    return FALSE
+                    return FALSE, None
                 else:
                     # revert history to before we made the mistake
+                    logger.info(f"Begin backtrack from {dl} to {lvl}")
                     Solver.backtrack(self.state, lvl, dl)
+                    logger.info(f"End backtrack from {dl} to {lvl}")
                     # avoid repeating the same mistake
                     self.formula.add_learnt_clause(learnt)
                     # decrement decision level due to backtracking
                     dl = lvl
             elif Solver.all_variables_assigned(self.formula, self.model):
+                logger.info("All variables assigned, break")
                 break
             else:
                 # decide stage
                 dl += 1
+                logger.info(f"Begin pick branching variable")
                 var, val = Solver.pick_branching_variable_update_state(self.state, dl)
+                logger.info(f"End pick branching variable {var} {val}")
                 self.model.extend(var, val)
 
-        return TRUE
+        return TRUE, self.model
 
     @classmethod
     def all_variables_assigned(cls, f: Formula, m: Model) -> bool:
@@ -64,7 +80,7 @@ class Solver:
         return True
 
     @classmethod
-    def unit_propagate(cls, f: Formula, m: Model, state: StateManager, dl: int) -> Clause:
+    def unit_propagate(cls, f: Formula, mdl: Model, state: StateManager, dl: int) -> Clause:
         """
         Returns None if no conflict is detected, or the conflicting clause otherwise.
         """
@@ -72,20 +88,26 @@ class Solver:
         while True:
             # propagation queue
             q = deque()
+            seen_symbols = set()
             for clause in f.get_clauses_with_learnt():
-                clause_status = m.get_clause_status(clause)
+                clause_status = mdl.get_clause_status(clause)
                 if clause_status == TRUE:
                     # ignore already satisfied clauses
                     continue
                 elif clause_status == FALSE:
                     # one clause false -> formula false
+                    logger.debug(f"Found UNSAT clause {clause}")
                     state.graph_add_conf_node(clause, dl)
                     return clause
                 else:
                     # filter unit clauses
-                    is_unit, unassigned_sbl = m.is_unit_clause(clause)
-                    if is_unit:
-                        q.append((unassigned_sbl, clause))
+                    is_unit, unassigned_sbl = mdl.is_unit_clause(clause)
+                    tup = (unassigned_sbl, clause)
+                    if is_unit and not (unassigned_sbl in seen_symbols or unassigned_sbl.negate() in seen_symbols):
+                        q.append(tup)
+                        # don't add the same symbol to the implication graph in one UP
+                        seen_symbols.add(unassigned_sbl)
+            logger.debug(f"Propagate queue: {q}")
             # propagate (if there's something to propagate)
             if len(q) == 0:
                 return None
@@ -93,7 +115,7 @@ class Solver:
                 while len(q) > 0:
                     symbol, antecedent = q.popleft()
                     symbol_pos, val = Solver.to_positive(symbol, TRUE)
-                    m.extend(symbol_pos, val)
+                    mdl.extend(symbol_pos, val)
                     state.graph_add_node(symbol_pos, val, antecedent, dl)
                     state.sbls_mark_assigned(symbol_pos)
 
@@ -103,8 +125,11 @@ class Solver:
         Picks new branching variable and updates history. dl for recording purposes.
         """
         sbl, val = state.sbls_get_unassigned_sbl_fifo()
+        logger.debug(f"Pick unassigned symbol {sbl} {val}")
         state.graph_add_node(sbl, val, None, dl)
+        logger.debug(f"Update implication graph {sbl} {val} {None} {dl}")
         state.sbls_mark_assigned(sbl)
+        logger.debug(f"Mark {sbl} as assigned")
         return sbl, val
 
 
@@ -117,23 +142,45 @@ class Solver:
         A First UIP is the UIP closest to the conflict.
         Receives conflicting clause, returns learnt clause and backtrack level
         """
+        def next_recently_assigned(pool: List[Symbol]) -> (Symbol, List[Symbol]):
+            """
+            Separate the latest assigned symbol according to assignment history from the rest in the clause
+            """
+            assign_history = list(g.get_history(dl))
+            for s in reversed(assign_history):
+                if s == CONFLICT_SYMBOL:
+                    continue
+                elif s in pool or s.negate() in pool:
+                    return s, [x for x in pool if x.literal != s.literal]
+
         # Conflict at first unit propagation, not solvable!
         if dl == 0:
             return None, -1
 
         done_sbls_pos = set()
-        curr_level_symbols = deque(g.graph_get_sbls_at_lvl_in_clause(dl, c))
+        #curr_level_symbols = deque(g.graph_get_sbls_at_lvl_in_clause(dl, c))
         learnt_clause = c
+        symbol_pool = c.symbol_list
+        # Continue until first UIP
         while len(g.graph_get_sbls_at_lvl_in_clause(dl, learnt_clause)) != 1:
-            conflict_sbl = curr_level_symbols.popleft()
-            conflict_sbl_pos = conflict_sbl.to_positive()
-            if conflict_sbl_pos not in done_sbls_pos:
-                clause = g.graph_get_antecedent(conflict_sbl_pos)
-                learnt_clause = Solver.resolution(learnt_clause, clause, conflict_sbl_pos)
-                done_sbls_pos.add(conflict_sbl_pos)
-                curr_level_symbols.extend(g.graph_get_parent_list_at_lvl(conflict_sbl_pos, dl))
+            # if len(curr_level_symbols) == 0:
+            #     # No first UIP, learn clause from all source nodes
+            #     break
+            if len(symbol_pool) == 0:
+                break
+            last_assigned, symbol_pool = next_recently_assigned(symbol_pool)
+            last_assgn_pos = last_assigned.to_positive()
+            if last_assgn_pos not in done_sbls_pos:
+                done_sbls_pos.add(last_assgn_pos)
+                clause = g.graph_get_antecedent(last_assgn_pos)
+                symbol_pool.extend(g.graph_get_parent_symbols(last_assgn_pos))
+                # curr_level_symbols.extend(g.graph_get_parent_list_at_lvl(conflict_sbl_pos, dl))
+                if clause: # branching variables have no antecedent
+                    logger.debug(f"Resolution {learnt_clause} {clause}")
+                    # TODO What happens when we conflict on a branching variable, with no antecedent?
+                    learnt_clause = Solver.resolution(learnt_clause, clause, last_assgn_pos)
 
-        # We assume every symbol in learnt clause is recorded in graph
+        # We assume every symbol in learnt clause is recorded in implication graph
         lbd = [g.graph_get_level(sbl.to_positive()) for sbl in learnt_clause]
 
         # NOT SURE WHETHER DL-1 OR 0

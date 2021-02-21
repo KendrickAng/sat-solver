@@ -20,8 +20,10 @@ class Formula:
 
     # Returns all clauses, original and learnt included.
     def get_clauses_with_learnt(self) -> List[Clause]:
-        return self.clist + self.learnt_clist
+        return self.learnt_clist + self.clist
 
     def add_learnt_clause(self, c: Clause):
         self.learnt_clist.append(c)
 
+    def __repr__(self):
+        return f"Clauses: {self.clist}\nLearnt Clauses: {self.learnt_clist}"

@@ -40,8 +40,9 @@ class StateManager:
         Symbol s must only be positive Symbol('A', True), not Symbol('A', False), otherwise there may
         be issues when finding the implication graph node when updating parents.
         """
-        assert s not in self.implication_graph
-        assert s.negate() not in self.implication_graph
+        logger.debug(f"Implication Graph: {self.implication_graph}")
+        assert s not in self.implication_graph, f"{s} should not be in implication graph"
+        assert s.negate() not in self.implication_graph, f"{s.negate()} should not be in implication graph"
         # We only want to deal with positive symbols
         s_pos, v_pos = s, val
         if not s.is_pos:
@@ -53,9 +54,8 @@ class StateManager:
 
         # antecedent is None only when we are selecting a branching symbol, hence no parent
         if antecedent:
-            for symbol in antecedent:
+            for symbol_pos in [sbl.to_positive() for sbl in antecedent if sbl.literal != s.literal]:
                 # all positive symbols of the antecedent should have been assigned
-                symbol_pos = symbol.to_positive()
                 if symbol_pos in self.implication_graph:
                     impl_node.add_parent(self.implication_graph[symbol_pos])
                     self.implication_graph[symbol_pos].add_child(impl_node)
@@ -63,13 +63,18 @@ class StateManager:
     def graph_add_conf_node(self, antecedent: Clause, dl: int):
         self.graph_add_node(CONFLICT_SYMBOL, None, antecedent, dl)
 
-    def graph_get_parent_list_at_lvl(self, s: Symbol, dl: int) -> List[Symbol]:
+    def graph_get_parent_symbols_at_lvl(self, s: Symbol, dl: int) -> List[Symbol]:
         """
         During conflict analysis, we need a way to get all implications at a certain level wrt a certain symbol.
         """
         assert s in self.implication_graph
         parents = self.implication_graph[s].get_parents()
         return [x.symbol for x in parents if x.level == dl]
+
+    def graph_get_parent_symbols(self, s: Symbol) -> List[Symbol]:
+        assert s in self.implication_graph
+        parents = self.implication_graph[s].get_parents()
+        return [x.symbol for x in parents]
 
     # Returns the list of symbols in the clause matching the decision level
     def graph_get_sbls_at_lvl_in_clause(self, dl: int, c: Clause) -> List[Symbol]:
@@ -99,9 +104,13 @@ class StateManager:
             q = self.history.get_history_at_lvl(i)
             while len(q) > 0:
                 sbl = q.popleft()
-                self.sbls_mark_unassigned(sbl)
                 self.implication_graph.pop(sbl)
+                if sbl != CONFLICT_SYMBOL: # conflict symbol should never be unassigned...
+                    self.sbls_mark_unassigned(sbl)
             self.history.del_history_at_lvl(i)
+
+    def get_history(self, dl: int):
+        return self.history.get_history_at_lvl(dl)
 
     def sbls_mark_unassigned(self, s: Symbol):
         self.unassigned_symbols.add(s)
@@ -147,6 +156,12 @@ class ImplicationGraphNode:
         return self.parents == other.parents and self.children == other.children and\
                 self.antecedent == other.antecedent and self.symbol == other.symbol and\
                 self.value == other.value and self.level == other.level
+
+    def __repr__(self):
+        parents = list(map(lambda x: f"{x.symbol}",self.parents))
+        children = list(map(lambda x: f"{x.symbol}",self.children))
+        return f"[{self.symbol} {self.value} Lvl:{self.level} "\
+               f"A:{self.antecedent} P:{parents} C:{children}]"
 
 class History:
     """
