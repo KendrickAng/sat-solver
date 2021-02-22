@@ -35,6 +35,10 @@ class Logger:
         elif level == "TRACE":
             logger.setLevel(logging.TRACE)
             return
+        elif level == "NONE":
+            # turn off the logger
+            logger.disabled = True
+            return
         raise ArgumentFormatError(f"{level} is not a valid log level")
 
     @classmethod

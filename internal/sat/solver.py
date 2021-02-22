@@ -161,14 +161,10 @@ class Solver:
             return None, -1
 
         done_sbls_pos = set()
-        #curr_level_symbols = deque(g.graph_get_sbls_at_lvl_in_clause(dl, c))
         learnt_clause = c
         symbol_pool = c.symbol_list
         # Continue until first UIP
         while len(g.graph_get_sbls_at_lvl_in_clause(dl, learnt_clause)) != 1:
-            # if len(curr_level_symbols) == 0:
-            #     # No first UIP, learn clause from all source nodes
-            #     break
             if len(symbol_pool) == 0:
                 break
             last_assigned, symbol_pool = next_recently_assigned(symbol_pool)
@@ -177,16 +173,13 @@ class Solver:
                 done_sbls_pos.add(last_assgn_pos)
                 clause = g.graph_get_antecedent(last_assgn_pos)
                 symbol_pool.extend(g.graph_get_parent_symbols(last_assgn_pos))
-                # curr_level_symbols.extend(g.graph_get_parent_list_at_lvl(conflict_sbl_pos, dl))
                 if clause: # branching variables have no antecedent
                     logger.debug(f"Resolution {learnt_clause} {clause}")
-                    # TODO What happens when we conflict on a branching variable, with no antecedent?
                     learnt_clause = Solver.resolution(learnt_clause, clause, last_assgn_pos)
 
         # We assume every symbol in learnt clause is recorded in implication graph
         lbd = [g.graph_get_level(sbl.to_positive()) for sbl in learnt_clause]
 
-        # NOT SURE WHETHER DL-1 OR 0
         return (learnt_clause, 0) if len(lbd) == 1 else (learnt_clause, nlargest(2, lbd)[-1])
 
     @classmethod

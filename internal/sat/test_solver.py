@@ -166,9 +166,8 @@ class TestSolver(unittest.TestCase):
         self.assertTrue(len(sm.history) == 1)
         self.assertTrue(len(sm.implication_graph) == 1)
 
-    def test_conflict_analysis(self):
-        # TODO add test case for UNSAT, unit propagation unit cluase case
-        # TODO https://www.youtube.com/watch?v=DIcRFQ2xzlA&t=369s
+    def test_unsatisfiable(self):
+        # Unsatisfiable formula from https://www.youtube.com/watch?v=DIcRFQ2xzlA&t=369s
         a = Symbol("a", TRUE)
         b = Symbol("b", TRUE)
         c = Symbol("c", TRUE)
@@ -252,9 +251,6 @@ class TestSolver(unittest.TestCase):
         # Formula is unsatisfiable
         learnt, lvl = Solver.conflict_analysis(conf_clause,state,dl)
         self.assertEqual(lvl, -1)
-
-    def test_backtrack(self):
-        return True
 
     def test_resolution(self):
         """

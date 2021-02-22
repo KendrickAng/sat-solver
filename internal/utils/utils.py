@@ -14,6 +14,6 @@ def solve_cnf(filepath):
     solver = Solver(symbols, formula, model)
     # evaluate
     is_sat, sat_model = solver.cdcl()
-    logger.info(f"SATISIFABLE: {is_sat}")
+    print(f"SATISIFABLE: {is_sat}")
     if sat_model:
-        logger.info(f"MODEL: {sat_model}")
+        print(f"MODEL: {sat_model}")
