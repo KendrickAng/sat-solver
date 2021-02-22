@@ -1,0 +1,3 @@
+TRUE = True
+FALSE = False
+UNASSIGNED = None

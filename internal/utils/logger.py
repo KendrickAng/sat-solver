@@ -1,9 +1,19 @@
 import logging
 from internal.utils.exceptions import ArgumentFormatError
 
+# Add our own logging levels
+logging.TRACE = 5
+logging.addLevelName(logging.TRACE, "TRACE")
+
+def trace(self, message, *args, **kws):
+    if self.isEnabledFor(logging.TRACE):
+        self._log(logging.TRACE, '\t{}'.format(message), args, **kws)
+
+logging.Logger.trace = trace
+
 class Logger:
     """
-    Program-wide logger. Instances of Logger should be created using the class methods withLevel.
+    Program-wide logger.
     """
 
     @classmethod
@@ -21,6 +31,13 @@ class Logger:
             return
         elif level == "ERROR":
             logger.setLevel(logging.ERROR)
+            return
+        elif level == "TRACE":
+            logger.setLevel(logging.TRACE)
+            return
+        elif level == "NONE":
+            # turn off the logger
+            logger.disabled = True
             return
         raise ArgumentFormatError(f"{level} is not a valid log level")
 
