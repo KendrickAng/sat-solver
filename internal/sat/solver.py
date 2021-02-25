@@ -30,12 +30,12 @@ class Solver:
 
         while not Solver.all_variables_assigned(self.formula, self.state.get_model()):
             logger.info(f"Now at decision level: {dl}")
-            logger.info(f"Current model: {self.state.get_model().shorten()}")
+            logger.info(f"Current model: {self.state.get_model_summary()}")
 
             # deduce stage
             # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
             logger.info(f"Begin unit propagation")
-            conf_clause = Solver.unit_propagate(self.formula, self.state.get_model(), self.state, dl)
+            conf_clause = Solver.unit_propagate(self.formula, self.state, dl)
             logger.info(f"End unit propagation")
 
             if conf_clause:
@@ -50,7 +50,7 @@ class Solver:
                 else:
                     # revert history to before we made the mistake
                     logger.info(f"Begin backtrack from {dl} to {lvl}")
-                    Solver.backtrack(self.state, self.state.get_model(), lvl, dl)
+                    Solver.backtrack(self.state, lvl, dl)
                     logger.info(f"End backtrack from {dl} to {lvl}")
                     # avoid repeating the same mistake
                     self.formula.add_learnt_clause(learnt)
@@ -65,7 +65,7 @@ class Solver:
                 logger.info(f"Begin pick branching variable")
                 var, val = Solver.pick_branching_variable_update_state(self.state, dl)
                 logger.info(f"End pick branching variable {var} {val}")
-                self.state.get_model().extend(var, val)
+                self.state.extend_model(var, val)
 
         # if we reach here, formula must be sat
         formula_status = self.state.get_model().get_formula_status(self.formula)
@@ -85,7 +85,7 @@ class Solver:
         return True
 
     @classmethod
-    def unit_propagate(cls, f: Formula, mdl: Model, state: StateManager, dl: int) -> Clause:
+    def unit_propagate(cls, f: Formula, state: StateManager, dl: int) -> Clause:
         """
         Returns None if no conflict is detected, or the conflicting clause otherwise.
         """
@@ -95,7 +95,7 @@ class Solver:
             q = deque()
             seen_symbols = set()
             for clause in f.get_clauses_with_learnt():
-                clause_status = mdl.get_clause_status(clause)
+                clause_status = state.get_model_clause_status(clause)
                 if clause_status == TRUE:
                     # ignore already satisfied clauses
                     continue
@@ -105,7 +105,7 @@ class Solver:
                     return clause
                 else:
                     # filter unit clauses
-                    is_unit, unassigned_sbl = mdl.is_unit_clause(clause)
+                    is_unit, unassigned_sbl = state.get_model().is_unit_clause(clause)
                     tup = (unassigned_sbl, clause)
                     if is_unit and not (unassigned_sbl in seen_symbols or unassigned_sbl.negate() in seen_symbols):
                         q.append(tup)
@@ -119,7 +119,7 @@ class Solver:
                 while len(q) > 0:
                     symbol, antecedent = q.popleft()
                     symbol_pos, val = Solver.to_positive(symbol, TRUE)
-                    mdl.extend(symbol_pos, val)
+                    state.get_model().extend(symbol_pos, val)
                     state.add_graph_node(symbol_pos, val, antecedent, dl)
                     state.sbls_mark_assigned(symbol_pos)
 
@@ -182,10 +182,10 @@ class Solver:
         return (learnt_clause, 0) if len(lbd) == 1 else (learnt_clause, nlargest(2, lbd)[-1])
 
     @classmethod
-    def backtrack(cls, state: StateManager, model: Model, dl_lower: int, dl_upper: int):
+    def backtrack(cls, state: StateManager, dl_lower: int, dl_upper: int):
         assert dl_lower <= dl_upper
         # remove the branching history and implication graph history
-        state.revert_history(model, dl_lower, dl_upper)
+        state.revert_history(dl_lower, dl_upper)
 
     @classmethod
     def resolution(cls, c1: Clause, c2: Clause, s: Symbol) -> Clause:

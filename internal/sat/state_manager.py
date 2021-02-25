@@ -105,7 +105,7 @@ class StateManager:
         return self.unassigned_symbols.pop_fifo(), TRUE
 
 
-    def revert_history(self, model: Model, dl_lower: int, dl_upper: int):
+    def revert_history(self, dl_lower: int, dl_upper: int):
         """
         Removes all implied nodes and branching nodes NOT INCLUDING dl_from, UP TO AND INCLUDING dl_to
         Also reverts all symbols to their unassigned state, if any.
@@ -118,7 +118,7 @@ class StateManager:
         logger.trace(f"Graph {self.implication_graph}")
         logger.trace(f"Unasgn Sbls {self.unassigned_symbols}")
         logger.trace(f"History {self.history}")
-        logger.trace(f"Model {model}")
+        logger.trace(f"Model {self.model}")
         for i in range(dl_lower + 1, dl_upper + 1):
             q = self.history.get_history_at_lvl(i)
             while len(q) > 0:
@@ -131,17 +131,26 @@ class StateManager:
         for node in self.implication_graph.values():
             node.revert_children(to_keep=symbols_left)
         # revert model
-        model.revert_model(to_keep=symbols_left)
+        self.model.revert_model(to_keep=symbols_left)
         logger.trace(f"Reverted History from {dl_lower} to {dl_upper}")
         logger.trace(f"New Graph {self.implication_graph}")
         logger.trace(f"New Unasgn Sbls {self.unassigned_symbols}")
         logger.trace(f"New History {self.history}")
-        logger.trace(f"New Model {model}")
+        logger.trace(f"New Model {self.model}")
+
+    def get_model_summary(self) -> str:
+        return self.model.shorten()
+
+    def get_model_clause_status(self, c: Clause) -> bool:
+        return self.model.get_clause_status(c)
+
+    def extend_model(self, s: Symbol, val: bool):
+        self.model.extend(s, val)
 
     def get_history(self, dl: int):
         return self.history.get_history_at_lvl(dl)
 
-    def get_model(self):
+    def get_model(self) -> Model:
         return self.model
 
     def __eq__(self, other):

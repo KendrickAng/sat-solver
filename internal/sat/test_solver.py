@@ -127,7 +127,7 @@ class TestSolver(unittest.TestCase):
         sm_expected = StateManager.from_values(sbls_expected,m_expected,implication_graph,history_expected)
         self.assertEqual(sm_actual, sm_expected)
 
-        conf_clause = Solver.unit_propagate(f, m_actual, sm_actual, 4)
+        conf_clause = Solver.unit_propagate(f, sm_actual, 4)
         self.assertEqual(conf_clause, w6)
 
         # EXTRA: test conflict analysis
@@ -139,7 +139,7 @@ class TestSolver(unittest.TestCase):
         l1 = len(sm_actual.unassigned_symbols)
         l2 = len(sm_actual.history.get_history_at_lvl(3))
         l3 = len(sm_actual.history.get_history_at_lvl(4))
-        Solver.backtrack(sm_actual, m_actual, bt_lvl, 4)
+        Solver.backtrack(sm_actual, bt_lvl, 4)
         l4 = len(sm_actual.unassigned_symbols)
         self.assertTrue(4 not in sm_actual.history)
         self.assertTrue(3 not in sm_actual.history)
@@ -200,7 +200,7 @@ class TestSolver(unittest.TestCase):
         history.add_history(2, b)
         state = StateManager.from_values(s,m,implication_graph,history)
         dl = 2
-        conf_clause = Solver.unit_propagate(f,m,state,2)
+        conf_clause = Solver.unit_propagate(f,state,2)
         self.assertEqual(conf_clause, Clause([c.negate(),d.negate()]))
 
         # conflict clause [-c, -d], now conflict analyze
@@ -208,7 +208,7 @@ class TestSolver(unittest.TestCase):
         self.assertEqual(learnt, Clause([c.negate()]))
         self.assertEqual(lvl, 0)
 
-        Solver.backtrack(state, m, lvl, dl)
+        Solver.backtrack(state, lvl, dl)
         f.add_learnt_clause(learnt)
         dl = lvl # 0
         self.assertTrue(len(state.history) == 0)
@@ -225,15 +225,16 @@ class TestSolver(unittest.TestCase):
             c:FALSE,c.negate():TRUE,
             d:UNASSIGNED,d.negate():UNASSIGNED
         })
+        state.model = m
         dl = 1 # Assume we're at dl 1 now
-        conf_clause = Solver.unit_propagate(f,m,state,dl)
+        conf_clause = Solver.unit_propagate(f,state,dl)
         self.assertEqual(conf_clause, Clause([a,b,d]))
 
         learnt, lvl = Solver.conflict_analysis(conf_clause,state,dl)
         self.assertEqual(learnt, Clause([a,c]))
         self.assertEqual(lvl, 0) # second highest dl: a = 1, c = 0
 
-        Solver.backtrack(state,m,lvl,dl) # backtrack to dl 0
+        Solver.backtrack(state,lvl,dl) # backtrack to dl 0
         f.add_learnt_clause(learnt)
         dl = lvl # 0
         self.assertTrue(len(state.history) == 1)
@@ -245,8 +246,9 @@ class TestSolver(unittest.TestCase):
             c:FALSE,c.negate():TRUE,
             d:UNASSIGNED,d.negate():UNASSIGNED
         })
+        state.model = m
 
-        conf_clause = Solver.unit_propagate(f,m,state,dl)
+        conf_clause = Solver.unit_propagate(f,state,dl)
         self.assertEqual(conf_clause, Clause([a.negate(),b,d.negate()]))
 
         # Formula is unsatisfiable
