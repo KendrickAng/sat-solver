@@ -20,23 +20,22 @@ class Solver:
     Model = the truth assignments of ALL variables (positive & negative), all initialised to None.
     """
     def __init__(self, symbols: Symbols, formula: Formula, model: Model):
-        self.state = StateManager(symbols)
+        self.state = StateManager(symbols, model)
         self.formula = formula
-        self.model = model
 
     def cdcl(self) -> (bool, Model):
         logger.info(f"Formula {self.formula}")
-        logger.info(f"Initial model {self.model}")
+        logger.info(f"Initial model {self.state.get_model()}")
         dl = 0 # no guesses have been made
 
-        while not Solver.all_variables_assigned(self.formula, self.model):
+        while not Solver.all_variables_assigned(self.formula, self.state.get_model()):
             logger.info(f"Now at decision level: {dl}")
-            logger.info(f"Current model: {self.model.shorten()}")
+            logger.info(f"Current model: {self.state.get_model().shorten()}")
 
             # deduce stage
             # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
             logger.info(f"Begin unit propagation")
-            conf_clause = Solver.unit_propagate(self.formula, self.model, self.state, dl)
+            conf_clause = Solver.unit_propagate(self.formula, self.state.get_model(), self.state, dl)
             logger.info(f"End unit propagation")
 
             if conf_clause:
@@ -51,13 +50,13 @@ class Solver:
                 else:
                     # revert history to before we made the mistake
                     logger.info(f"Begin backtrack from {dl} to {lvl}")
-                    Solver.backtrack(self.state, self.model, lvl, dl)
+                    Solver.backtrack(self.state, self.state.get_model(), lvl, dl)
                     logger.info(f"End backtrack from {dl} to {lvl}")
                     # avoid repeating the same mistake
                     self.formula.add_learnt_clause(learnt)
                     # decrement decision level due to backtracking
                     dl = lvl
-            elif Solver.all_variables_assigned(self.formula, self.model):
+            elif Solver.all_variables_assigned(self.formula, self.state.get_model()):
                 logger.info("All variables assigned, break")
                 break
             else:
@@ -66,14 +65,14 @@ class Solver:
                 logger.info(f"Begin pick branching variable")
                 var, val = Solver.pick_branching_variable_update_state(self.state, dl)
                 logger.info(f"End pick branching variable {var} {val}")
-                self.model.extend(var, val)
+                self.state.get_model().extend(var, val)
 
         # if we reach here, formula must be sat
-        formula_status = self.model.get_formula_status(self.formula)
+        formula_status = self.state.get_model().get_formula_status(self.formula)
         assert formula_status == TRUE
         logger.info(f"Verified formula SAT status with model")
 
-        return TRUE, self.model
+        return TRUE, self.state.get_model()
 
     @classmethod
     def all_variables_assigned(cls, f: Formula, m: Model) -> bool:
@@ -121,7 +120,7 @@ class Solver:
                     symbol, antecedent = q.popleft()
                     symbol_pos, val = Solver.to_positive(symbol, TRUE)
                     mdl.extend(symbol_pos, val)
-                    state.graph_add_node(symbol_pos, val, antecedent, dl)
+                    state.add_graph_node(symbol_pos, val, antecedent, dl)
                     state.sbls_mark_assigned(symbol_pos)
 
     @classmethod
@@ -131,7 +130,7 @@ class Solver:
         """
         sbl, val = state.sbls_get_unassigned_sbl_fifo()
         logger.debug(f"Pick unassigned symbol {sbl} {val}")
-        state.graph_add_node(sbl, val, None, dl)
+        state.add_graph_node(sbl, val, None, dl)
         logger.debug(f"Update implication graph {sbl} {val} {None} {dl}")
         state.sbls_mark_assigned(sbl)
         logger.debug(f"Mark {sbl} as assigned")
@@ -164,21 +163,21 @@ class Solver:
         learnt_clause = c
         symbol_pool = c.symbol_list
         # Continue until first UIP
-        while len(g.graph_get_sbls_at_lvl_in_clause(dl, learnt_clause)) != 1:
+        while len(g.get_graph_sbls_at_lvl_in_clause(dl, learnt_clause)) != 1:
             if len(symbol_pool) == 0:
                 break
             last_assigned, symbol_pool = next_recently_assigned(symbol_pool)
             last_assgn_pos = last_assigned.to_positive()
             if last_assgn_pos not in done_sbls_pos:
                 done_sbls_pos.add(last_assgn_pos)
-                clause = g.graph_get_antecedent(last_assgn_pos)
-                symbol_pool.extend(g.graph_get_parent_symbols(last_assgn_pos))
+                clause = g.get_graph_antecedent(last_assgn_pos)
+                symbol_pool.extend(g.get_graph_parent_symbols(last_assgn_pos))
                 if clause: # branching variables have no antecedent
                     logger.debug(f"Resolution {learnt_clause} {clause}")
                     learnt_clause = Solver.resolution(learnt_clause, clause, last_assgn_pos)
 
         # We assume every symbol in learnt clause is recorded in implication graph
-        lbd = [g.graph_get_level(sbl.to_positive()) for sbl in learnt_clause]
+        lbd = [g.get_graph_level(sbl.to_positive()) for sbl in learnt_clause]
 
         return (learnt_clause, 0) if len(lbd) == 1 else (learnt_clause, nlargest(2, lbd)[-1])
 

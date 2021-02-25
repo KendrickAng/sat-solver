@@ -29,4 +29,6 @@ ALl Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 # Backlog
 - Move model into state
 - Clean up code
+- Profile algorithm
 - Optimize algorithm
+- Add different branching heuristics

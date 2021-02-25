@@ -18,14 +18,15 @@ class StateManager:
     All symbols will be only positive.
     """
     @classmethod
-    def from_values(cls, s: Symbols, ig: dict, h: 'History'):
-        return StateManager(s, ig, h)
+    def from_values(cls, s: Symbols, m: Model, ig: dict, h: 'History'):
+        return StateManager(s, m, ig, h)
 
-    def __init__(self, symbols: Symbols, implication_graph:dict=None, h:'History'=None):
-        # for easier picking of branching variable (only positive)
+    def __init__(self, symbols: Symbols, model: Model, implication_graph:dict=None, h:'History'=None):
         for s in symbols:
             assert s.is_pos
+        # for easier picking of branching variable (only positive)
         self.unassigned_symbols = symbols
+        self.model = model
         # makes it easier to match with symbols in a clause, and deleting based on symbols inferred at a level.
         # Symbol (only positive) -> ImplicationNode
         self.implication_graph = {} if implication_graph is None else implication_graph
@@ -33,7 +34,7 @@ class StateManager:
         # dl (int) -> deque[Symbol (only positive)]
         self.history = History() if h is None else h
 
-    def graph_add_node(self, s: Symbol, val: bool, antecedent: Clause, dl: int):
+    def add_graph_node(self, s: Symbol, val: bool, antecedent: Clause, dl: int):
         """
         Adds a node X to the implication graph, updating its history.
         Its parents are the antecedent(X), and those nodes in the antecedent have X as their child.
@@ -60,7 +61,7 @@ class StateManager:
                     impl_node.add_parent(self.implication_graph[symbol_pos])
                     self.implication_graph[symbol_pos].add_child(impl_node)
 
-    def graph_get_parent_symbols_at_lvl(self, s: Symbol, dl: int) -> List[Symbol]:
+    def get_graph_parent_symbols_at_lvl(self, s: Symbol, dl: int) -> List[Symbol]:
         """
         During conflict analysis, we need a way to get all implications at a certain level wrt a certain symbol.
         """
@@ -68,13 +69,13 @@ class StateManager:
         parents = self.implication_graph[s].get_parents()
         return [x.symbol for x in parents if x.level == dl]
 
-    def graph_get_parent_symbols(self, s: Symbol) -> List[Symbol]:
+    def get_graph_parent_symbols(self, s: Symbol) -> List[Symbol]:
         assert s in self.implication_graph
         parents = self.implication_graph[s].get_parents()
         return [x.symbol for x in parents]
 
     # Returns the list of symbols in the clause matching the decision level
-    def graph_get_sbls_at_lvl_in_clause(self, dl: int, c: Clause) -> List[Symbol]:
+    def get_graph_sbls_at_lvl_in_clause(self, dl: int, c: Clause) -> List[Symbol]:
         ret = []
         assert dl in self.history, f"symbols_at_level dl {dl} not in history"
         for symbol in c:
@@ -82,13 +83,27 @@ class StateManager:
                 ret.append(symbol)
         return ret
 
-    def graph_get_level(self, s: Symbol) -> int:
+    def get_graph_level(self, s: Symbol) -> int:
         assert s in self.implication_graph, f"get_level {s} not in graph"
         return self.implication_graph[s].level
 
-    def graph_get_antecedent(self, s: Symbol) -> Clause:
+    def get_graph_antecedent(self, s: Symbol) -> Clause:
         assert s in self.implication_graph, f"get_antecedent {s} not in graph"
         return self.implication_graph[s].antecedent
+
+    def sbls_mark_unassigned(self, s: Symbol):
+        self.unassigned_symbols.add(s)
+
+    def sbls_mark_assigned(self, s: Symbol):
+        neg = s.negate()
+        if s in self.unassigned_symbols:
+            self.unassigned_symbols.remove(s)
+        if neg in self.unassigned_symbols:
+            self.unassigned_symbols.remove(neg)
+
+    def sbls_get_unassigned_sbl_fifo(self) -> (Symbol, bool):
+        return self.unassigned_symbols.pop_fifo(), TRUE
+
 
     def revert_history(self, model: Model, dl_lower: int, dl_upper: int):
         """
@@ -126,21 +141,12 @@ class StateManager:
     def get_history(self, dl: int):
         return self.history.get_history_at_lvl(dl)
 
-    def sbls_mark_unassigned(self, s: Symbol):
-        self.unassigned_symbols.add(s)
-
-    def sbls_mark_assigned(self, s: Symbol):
-        neg = s.negate()
-        if s in self.unassigned_symbols:
-            self.unassigned_symbols.remove(s)
-        if neg in self.unassigned_symbols:
-            self.unassigned_symbols.remove(neg)
-
-    def sbls_get_unassigned_sbl_fifo(self) -> (Symbol, bool):
-        return self.unassigned_symbols.pop_fifo(), TRUE
+    def get_model(self):
+        return self.model
 
     def __eq__(self, other):
         return self.unassigned_symbols == other.unassigned_symbols and\
+                self.model == other.model and\
                 self.history == other.history and\
                 self.implication_graph == other.implication_graph
 

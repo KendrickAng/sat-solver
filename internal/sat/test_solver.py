@@ -115,16 +115,16 @@ class TestSolver(unittest.TestCase):
         ))
         self.assertEqual(history_actual, history_expected)
         # Higher level integration tests (using API from StateManager)
-        sm_actual = StateManager(Symbols.from_values(deque([x1,x2,x3,x4,x5,x6,x7,x8,x9])))
-        sm_actual.graph_add_node(x1,TRUE,None,1) # also updates history
-        sm_actual.graph_add_node(x2,TRUE,None,2)
-        sm_actual.graph_add_node(x3,TRUE,None,3)
-        sm_actual.graph_add_node(x4,TRUE,None,4)
+        sm_actual = StateManager(Symbols.from_values(deque([x1,x2,x3,x4,x5,x6,x7,x8,x9])), m_actual)
+        sm_actual.add_graph_node(x1, TRUE, None, 1) # also updates history
+        sm_actual.add_graph_node(x2, TRUE, None, 2)
+        sm_actual.add_graph_node(x3, TRUE, None, 3)
+        sm_actual.add_graph_node(x4, TRUE, None, 4)
         sm_actual.sbls_mark_assigned(x1)
         sm_actual.sbls_mark_assigned(x2)
         sm_actual.sbls_mark_assigned(x3)
         sm_actual.sbls_mark_assigned(x4)
-        sm_expected = StateManager.from_values(sbls_expected,implication_graph,history_expected)
+        sm_expected = StateManager.from_values(sbls_expected,m_expected,implication_graph,history_expected)
         self.assertEqual(sm_actual, sm_expected)
 
         conf_clause = Solver.unit_propagate(f, m_actual, sm_actual, 4)
@@ -139,7 +139,7 @@ class TestSolver(unittest.TestCase):
         l1 = len(sm_actual.unassigned_symbols)
         l2 = len(sm_actual.history.get_history_at_lvl(3))
         l3 = len(sm_actual.history.get_history_at_lvl(4))
-        Solver.backtrack(sm_actual, bt_lvl, 4)
+        Solver.backtrack(sm_actual, m_actual, bt_lvl, 4)
         l4 = len(sm_actual.unassigned_symbols)
         self.assertTrue(4 not in sm_actual.history)
         self.assertTrue(3 not in sm_actual.history)
@@ -156,7 +156,8 @@ class TestSolver(unittest.TestCase):
         symbols.add(x3)
         implication_graph = {}
         history = History()
-        sm = StateManager.from_values(symbols, implication_graph, history)
+        model = Model({})
+        sm = StateManager.from_values(symbols, model, implication_graph, history)
         sbl, val = Solver.pick_branching_variable_update_state(sm, 1)
         self.assertTrue(sbl == x1 or sbl == x2 or sbl == x3)
         self.assertTrue(val is TRUE or val is FALSE)
@@ -197,7 +198,7 @@ class TestSolver(unittest.TestCase):
         history = History()
         history.add_history(1, a)
         history.add_history(2, b)
-        state = StateManager.from_values(s,implication_graph,history)
+        state = StateManager.from_values(s,m,implication_graph,history)
         dl = 2
         conf_clause = Solver.unit_propagate(f,m,state,2)
         self.assertEqual(conf_clause, Clause([c.negate(),d.negate()]))
@@ -207,15 +208,15 @@ class TestSolver(unittest.TestCase):
         self.assertEqual(learnt, Clause([c.negate()]))
         self.assertEqual(lvl, 0)
 
-        Solver.backtrack(state, lvl, dl)
+        Solver.backtrack(state, m, lvl, dl)
         f.add_learnt_clause(learnt)
         dl = lvl # 0
         self.assertTrue(len(state.history) == 0)
         self.assertTrue(len(state.implication_graph) == 0)
         self.assertTrue(len(state.unassigned_symbols) == 4)
 
-        state.graph_add_node(c.negate(),TRUE,None,0) # also updates history
-        state.graph_add_node(a.negate(),TRUE,None,1)
+        state.add_graph_node(c.negate(), TRUE, None, 0) # also updates history
+        state.add_graph_node(a.negate(), TRUE, None, 1)
         state.sbls_mark_assigned(a)
         state.sbls_mark_assigned(c)
         m = Model.from_mapping({
@@ -232,7 +233,7 @@ class TestSolver(unittest.TestCase):
         self.assertEqual(learnt, Clause([a,c]))
         self.assertEqual(lvl, 0) # second highest dl: a = 1, c = 0
 
-        Solver.backtrack(state,lvl,dl) # backtrack to dl 0
+        Solver.backtrack(state,m,lvl,dl) # backtrack to dl 0
         f.add_learnt_clause(learnt)
         dl = lvl # 0
         self.assertTrue(len(state.history) == 1)
