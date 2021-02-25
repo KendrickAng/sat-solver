@@ -4,13 +4,13 @@ Python 3.9.1
 # Getting started
 
 Run a single input file:\
-`python main.py --file sample.cnf --log-level INFO -p False`\
-`python main.py --file uf20-91\uf20-01.cnf --log-level NONE -p False`
+`python main.py --file sample.cnf --log-level INFO --stats True`\
+`python main.py --file uf20-91\uf20-01.cnf --log-level NONE --stats True`
 
 - Argument to --file should be under the "test" folder.
 
 Run all input files under a single directory:\
-`python main.py --dir uf20-91 --log-level INFO -p False`
+`python main.py --dir uf20-91 --log-level INFO`
 
 - Argument to --dir should be under the "test" folder.
 
@@ -28,5 +28,6 @@ ALl Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 
 # Backlog
 - Optimize algorithm
-- Add algorithm statistics
+- Add algorithm statistics (and a Stats Class)
 - Add different branching heuristics
+- Fix the weird argument parser

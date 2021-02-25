@@ -18,6 +18,8 @@ parser.add_argument("-l", "--log-level", dest="log_level", type=str,
                     help="Log level. INFO/DEBUG/ERROR. Default: INFO.")
 parser.add_argument("-p", "--profile", dest="profile", type=bool,
                     help="Activate profiling. Default: False.")
+parser.add_argument("-s", "--stats", dest="stats", type=bool,
+                    help="Activate statistics. Default: False.")
 
 args = parser.parse_args()
 
@@ -40,11 +42,16 @@ pr = cProfile.Profile(timer=time.process_time)
 
 if args.input_file:
     filepath = os.path.join(input_dir_path, args.input_file)
+    if args.stats:
+        tic = time.perf_counter()
     if args.profile:
         pr.enable()
 
     solve_cnf(filepath)
 
+    if args.stats:
+        toc = time.perf_counter()
+        print(f"Program ran in {toc-tic:0.4f} seconds")
     if args.profile:
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(pstats.SortKey.CUMULATIVE)
