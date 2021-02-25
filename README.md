@@ -27,7 +27,6 @@ ALl Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 `uf50-218` / `uuf50-218`: 50 variables, 218 clauses - 1000 instances, all sat/unsat
 
 # Backlog
-- Profile algorithm
 - Optimize algorithm
-- Add statistics
+- Add algorithm statistics
 - Add different branching heuristics

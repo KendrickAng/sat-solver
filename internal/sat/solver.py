@@ -72,7 +72,7 @@ class Solver:
         assert formula_status == TRUE
         logger.info(f"Verified formula SAT status with model")
 
-        return TRUE, self.state.get_model()
+        return TRUE, self.state.get_model_summary()
 
     @classmethod
     def all_variables_assigned(cls, f: Formula, m: Model) -> bool:

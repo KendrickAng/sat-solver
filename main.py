@@ -1,6 +1,6 @@
 import argparse, os
-import cProfile
-from pstats import SortKey
+import cProfile, pstats
+import time
 from internal.utils.logger import Logger
 from internal.utils.utils import solve_cnf
 
@@ -35,19 +35,32 @@ logger = Logger.get_logger()
 root_dir_path = os.path.dirname(__file__)
 input_dir_path = os.path.join(root_dir_path, "input")
 
+# profiling
+pr = cProfile.Profile(timer=time.process_time)
+
 if args.input_file:
     filepath = os.path.join(input_dir_path, args.input_file)
     if args.profile:
-        cProfile.run('solve_cnf(filepath)', None, SortKey.TIME)
-    else:
-        solve_cnf(filepath)
+        pr.enable()
+
+    solve_cnf(filepath)
+
+    if args.profile:
+        pr.disable()
+        ps = pstats.Stats(pr).sort_stats(pstats.SortKey.CUMULATIVE)
+        ps.print_stats(10)
 elif args.input_dir:
     dirpath = os.path.join(input_dir_path, args.input_dir)
+    if args.profile:
+        pr.enable()
+
     for entry in os.scandir(dirpath):
-        if args.profile:
-            cProfile.run('solve_cnf(filepath)', None, SortKey.TIME)
-        else:
-            solve_cnf(entry.path)
+        solve_cnf(entry.path)
+
+    if args.profile:
+        pr.disable()
+        ps = pstats.Stats(pr).sort_stats(pstats.SortKey.CUMULATIVE)
+        ps.print_stats(10)
 else:
     parser.print_help()
     exit(-1)
