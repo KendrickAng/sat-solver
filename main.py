@@ -2,7 +2,7 @@ import argparse, os
 import cProfile, pstats
 import time
 from internal.utils.logger import Logger
-from internal.utils.utils import solve_cnf
+from internal.utils.utils import solve_cnf, get_branch_heuristic
 
 # setup
 parser = argparse.ArgumentParser(description="CDCL SAT Solver.\n"
@@ -14,12 +14,14 @@ parser.add_argument("-f", "--file", dest="input_file", type=str,
                     help="Input file in DIMACS format in directory 'input'.")
 parser.add_argument("-d", "--dir", dest="input_dir", type=str,
                     help="Input directory under directory 'input' to get .cnf files from.")
-parser.add_argument("-l", "--log-level", dest="log_level", type=str,
-                    help="Log level. INFO/DEBUG/ERROR. Default: INFO.")
-parser.add_argument("-p", "--profile", dest="profile", type=bool,
-                    help="Activate profiling. Default: False.")
-parser.add_argument("-s", "--stats", dest="stats", type=bool,
-                    help="Activate statistics. Default: False.")
+parser.add_argument("-l", "--log-level", dest="log_level", type=str, default="NONE",
+                    help="Log level. INFO/DEBUG/ERROR. Default: NONE.")
+parser.add_argument("-p", "--profile", dest="profile", action='store_true',
+                    help="Activate profiling. Slows program significantly. Off by default.")
+parser.add_argument("-s", "--stats", dest="stats", action='store_true',
+                    help="Activate statistics. Slows program minimally. Off by default.")
+parser.add_argument("-b", "--branch-heuristic", dest="heuristic", type=str, default="DEFAULT",
+                    help="Branching variable heuristic. Default: DEFAULT")
 
 args = parser.parse_args()
 
@@ -47,7 +49,7 @@ if args.input_file:
     if args.profile:
         pr.enable()
 
-    solve_cnf(filepath)
+    solve_cnf(filepath, args.heuristic)
 
     if args.stats:
         toc = time.perf_counter()
@@ -62,7 +64,7 @@ elif args.input_dir:
         pr.enable()
 
     for entry in os.scandir(dirpath):
-        solve_cnf(entry.path)
+        solve_cnf(entry.path, args.heuristic)
 
     if args.profile:
         pr.disable()

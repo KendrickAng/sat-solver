@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List
+from typing import List, Callable
 from heapq import nlargest
 from internal.sat.model import Model
 from internal.sat.symbol import Symbol
@@ -19,9 +19,10 @@ class Solver:
     Clauses = the set of clauses.
     Model = the truth assignments of ALL variables (positive & negative), all initialised to None.
     """
-    def __init__(self, symbols: Symbols, formula: Formula, model: Model):
+    def __init__(self, symbols: Symbols, formula: Formula, model: Model, heuristic_fn: Callable):
         self.state = StateManager(symbols, model)
         self.formula = formula
+        self.heuristic_fn = heuristic_fn
 
     def cdcl(self) -> (bool, Model):
         logger.info(f"Formula {self.formula}")
@@ -63,7 +64,7 @@ class Solver:
                 # decide stage
                 dl += 1
                 logger.info(f"Begin pick branching variable")
-                var, val = Solver.pick_branching_variable_update_state(self.state, dl)
+                var, val = Solver.pick_branching_variable_update_state(self.state, dl, self.heuristic_fn, self.formula)
                 logger.info(f"End pick branching variable {var} {val}")
                 self.state.extend_model(var, val)
 
@@ -124,11 +125,17 @@ class Solver:
                     state.sbls_mark_assigned(symbol_pos)
 
     @classmethod
-    def pick_branching_variable_update_state(cls, state: StateManager, dl: int) -> (Symbol, bool):
+    def pick_branching_variable_update_state(cls,
+                                             state: StateManager,
+                                             dl: int,
+                                             heuristic_fn: Callable,
+                                             formula: Formula
+                                             ) -> (Symbol, bool):
         """
         Picks new branching variable and updates history. dl for recording purposes.
         """
-        sbl, val = state.sbls_get_unassigned_sbl_fifo()
+        sbl, val = heuristic_fn(state, formula)
+        # sbl, val = state.sbls_get_unassigned_sbl_fifo()
         logger.debug(f"Pick unassigned symbol {sbl} {val}")
         state.add_graph_node(sbl, val, None, dl)
         logger.debug(f"Update implication graph {sbl} {val} {None} {dl}")
@@ -207,3 +214,7 @@ class Solver:
             return s, val
         else:
             return s.negate(), not val
+
+    @classmethod
+    def get_unresolved_clauses(cls, f: Formula, m: Model) -> List[Clause]:
+        return [x for x in f.get_clauses_with_learnt() if m.get_clause_status(x) == UNASSIGNED]

@@ -27,7 +27,8 @@ ALl Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 `uf50-218` / `uuf50-218`: 50 variables, 218 clauses - 1000 instances, all sat/unsat
 
 # Backlog
-- Optimize algorithm
 - Add algorithm statistics (and a Stats Class)
 - Add different branching heuristics
-- Fix the weird argument parser
+  - DLIS (OK)
+- Add CryptoMiniSat
+- Fix broken tests once branching vars are added (due to adding branching vars)

@@ -104,7 +104,6 @@ class StateManager:
     def sbls_get_unassigned_sbl_fifo(self) -> (Symbol, bool):
         return self.unassigned_symbols.pop_fifo(), TRUE
 
-
     def revert_history(self, dl_lower: int, dl_upper: int):
         """
         Removes all implied nodes and branching nodes NOT INCLUDING dl_from, UP TO AND INCLUDING dl_to
