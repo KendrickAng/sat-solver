@@ -50,6 +50,7 @@ All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
   - E.g `.\cryptominisat5.exe --verb 0 ..\input\sample.cnf`
   - E.g `.\cryptominisat5.exe --verb 0 sample_unsat.cnf`
 1. Either `SATISFIABLE` or `UNSATISFIABLE` will be output.
+1. Note that the sample input from `https://www.cs.ubc.ca` is not compatible due to the presence of disallowed characters `%` and the `0` at the end.
 
 # Backlog
 - Add algorithm statistics (and a Stats Class)
