@@ -4,8 +4,8 @@ Python 3.9.1
 # Getting started
 
 Run a single input file:\
-`python main.py --file sample.cnf --log-level INFO --stats True`\
-`python main.py --file uf20-91\uf20-01.cnf --log-level NONE --stats True`
+`python main.py --file sample.cnf --branch-heuristic DLIS --log-level INFO --stats`\
+`python main.py --file uf20-91\uf20-01.cnf --branch-heuristic DLIS --log-level NONE --stats`
 
 - Argument to --file should be under the "test" folder.
 
@@ -14,14 +14,32 @@ Run all input files under a single directory:\
 
 - Argument to --dir should be under the "test" folder.
 
-# Log levels
-`NONE`: Turn off all logging (except print statements)
-`INFO`: High-level overview of cdcl algorithm\
-`DEBUG`: `INFO` + high-level methods called in main cdcl algorithm\
-`TRACE`: `DEBUG` + low-level methods called by everything in "internal.sat" package
+# Flags
+To see help for all available flags, run `python main.py -h`
+- Input file in DIMACS format
+  - `--file` or `-f`
+- Input directory, all files in DIMACS format
+  - `--dir` or `-d`
+- Branching variable heuristic
+  - Heuristic to select the next symbol to assign
+  - `--branch-heuristic` or `-b`
+  - `DLIS`: Dynamic Largest Individual Sum (of literals)
+  - `DEFAULT`: Selects in FIFO the next unassigned positive symbol, assigns it true 
+- Log level
+  - `--log-level` or `l`
+  - `NONE`: Turn off all logging (except print statements)
+  - `INFO`: High-level overview of cdcl algorithm\
+  - `DEBUG`: `INFO` + high-level methods called in main cdcl algorithm\
+  - `TRACE`: `DEBUG` + low-level methods called by everything in "internal.sat" package
+- Profiling
+  - Profiles the program, printing time spent in each function. Slows program execution.
+  - `--profile` or `-p`
+- Statistics (WIP)
+  - Time spent to execute CDCL algorithm
+  - `--stats` or `-s`
 
 # Input
-ALl Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html`.
+All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html`.
 
 `uf20-91`: 20 variables, 91 clauses - 1000 instances, all satisfiable\
 `uf50-218` / `uuf50-218`: 50 variables, 218 clauses - 1000 instances, all sat/unsat
