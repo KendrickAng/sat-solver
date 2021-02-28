@@ -28,8 +28,8 @@ To see help for all available flags, run `python main.py -h`
 - Log level
   - `--log-level` or `l`
   - `NONE`: Turn off all logging (except print statements)
-  - `INFO`: High-level overview of cdcl algorithm\
-  - `DEBUG`: `INFO` + high-level methods called in main cdcl algorithm\
+  - `INFO`: High-level overview of cdcl algorithm
+  - `DEBUG`: `INFO` + high-level methods called in main cdcl algorithm
   - `TRACE`: `DEBUG` + low-level methods called by everything in "internal.sat" package
 - Profiling
   - Profiles the program, printing time spent in each function. Slows program execution.
@@ -44,9 +44,18 @@ All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 `uf20-91`: 20 variables, 91 clauses - 1000 instances, all satisfiable\
 `uf50-218` / `uuf50-218`: 50 variables, 218 clauses - 1000 instances, all sat/unsat
 
+# Manual Verfication with CryptoMiniSat
+1. Navigate to the `cryptominisat` folder
+1. Run `.\cryptominisat5.exe --verb 0 <filename>.cnf`
+  - E.g `.\cryptominisat5.exe --verb 0 ..\input\sample.cnf`
+  - E.g `.\cryptominisat5.exe --verb 0 sample_unsat.cnf`
+1. Either `SATISFIABLE` or `UNSATISFIABLE` will be output.
+
 # Backlog
 - Add algorithm statistics (and a Stats Class)
 - Add different branching heuristics
+  - BOHM
+  - MOM
+  - Jeroslow-Wang
   - DLIS (OK)
-- Add CryptoMiniSat
 - Fix broken tests once branching vars are added (due to adding branching vars)
