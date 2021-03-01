@@ -55,7 +55,6 @@ All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 1. Note that the sample input from `https://www.cs.ubc.ca` is not compatible due to the presence of disallowed characters `%` and the `0` at the end.
 
 # Backlog
-- Add algorithm statistics (and a Stats Class)
 - Add different branching heuristics
   - BOHM
   - MOM
