@@ -2,6 +2,7 @@ from typing import Callable, List
 from collections import defaultdict
 from internal.sat.model import Model
 from internal.sat.solver import Solver
+from internal.sat.stats import Stats
 from internal.utils.exceptions import ArgumentFormatError
 from internal.utils.logger import Logger
 from internal.utils.parser import Parser
@@ -11,20 +12,30 @@ from internal.sat.formula import Formula
 
 logger = Logger.get_logger()
 
-def solve_cnf(filepath: str, branch_heuristic: str):
+def solve_cnf(filepath: str, branch_heuristic: str, has_stats: bool):
     # parse
     prs = Parser()
     # Symbols (all pos), List[Symbol], Formula
     symbols, symbols_lst, formula = prs.parse(filepath)
+
     # generate solver
     heuristic_fn = get_branch_heuristic(branch_heuristic, symbols_lst)
     model = Model.from_symbols(symbols)
-    solver = Solver(symbols, formula, model, heuristic_fn)
+    stats = Stats()
+    if has_stats:
+        solver = Solver(symbols, formula, model, heuristic_fn, stats)
+    else:
+        solver = Solver(symbols, formula, model, heuristic_fn, None)
+
     # evaluate
     is_sat, sat_model = solver.cdcl()
+
+    # display results
     print(f"SATISIFABLE: {is_sat}")
     if sat_model:
         print(f"MODEL: {sat_model}")
+    if has_stats:
+        print(stats.string())
 
 # Returns a function that takes in a state and formula, and returns a symbol and its assignment.
 def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:

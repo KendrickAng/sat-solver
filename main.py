@@ -2,7 +2,7 @@ import argparse, os
 import cProfile, pstats
 import time
 from internal.utils.logger import Logger
-from internal.utils.utils import solve_cnf, get_branch_heuristic
+from internal.utils.utils import solve_cnf
 
 # setup
 parser = argparse.ArgumentParser(description="CDCL SAT Solver.\n"
@@ -44,16 +44,11 @@ pr = cProfile.Profile(timer=time.process_time)
 
 if args.input_file:
     filepath = os.path.join(input_dir_path, args.input_file)
-    if args.stats:
-        tic = time.perf_counter()
     if args.profile:
         pr.enable()
 
-    solve_cnf(filepath, args.heuristic)
+    solve_cnf(filepath, args.heuristic, args.stats)
 
-    if args.stats:
-        toc = time.perf_counter()
-        print(f"Program ran in {toc-tic:0.4f} seconds")
     if args.profile:
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(pstats.SortKey.CUMULATIVE)
@@ -64,7 +59,7 @@ elif args.input_dir:
         pr.enable()
 
     for entry in os.scandir(dirpath):
-        solve_cnf(entry.path, args.heuristic)
+        solve_cnf(entry.path, args.heuristic, args.stats)
 
     if args.profile:
         pr.disable()

@@ -2,6 +2,7 @@ from collections import deque
 from typing import List, Callable
 from heapq import nlargest
 from internal.sat.model import Model
+from internal.sat.stats import Stats
 from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.formula import Formula
@@ -19,10 +20,11 @@ class Solver:
     Clauses = the set of clauses.
     Model = the truth assignments of ALL variables (positive & negative), all initialised to None.
     """
-    def __init__(self, symbols: Symbols, formula: Formula, model: Model, heuristic_fn: Callable):
+    def __init__(self, symbols: Symbols, formula: Formula, model: Model, heuristic_fn: Callable, stats: Stats):
         self.state = StateManager(symbols, model)
         self.formula = formula
         self.heuristic_fn = heuristic_fn
+        self.stats = stats
 
     def cdcl(self) -> (bool, Model):
         logger.info(f"Formula {self.formula}")
