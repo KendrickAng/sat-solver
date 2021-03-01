@@ -69,6 +69,7 @@ class Solver:
                 var, val = Solver.pick_branching_variable_update_state(self.state, dl, self.heuristic_fn, self.formula)
                 logger.info(f"End pick branching variable {var} {val}")
                 self.state.extend_model(var, val)
+                self.stats.inc_bc()
 
         # if we reach here, formula must be sat
         formula_status = self.state.get_model().get_formula_status(self.formula)

@@ -41,15 +41,52 @@ def solve_cnf(filepath: str, branch_heuristic: str, has_stats: bool):
 def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:
     def dlis(state: StateManager, formula: Formula) -> (Symbol, bool):
         """
-        Dynamic Largest Individual Sum (DLIS)
+        Dynamic Largest Individual Sum (DLIS).
+        Counts the number of unresolved clauses in which a given symbol x appears as a positive literal, Cp
+        and as a negative literal Cn.
+        Consider these values separately.
+        Select the variable with the largest individual value, assign it true if Cp >= Cn, false otherwise.
         """
         sbls_pos = state.unassigned_symbols # unassigned symbols only
-        unsat_clauses = Solver.get_unresolved_clauses(formula, state.model)
+        unass_cls = Solver.get_unresolved_clauses(formula, state.model)
         scores = defaultdict(int)
-        for unsat_clause in unsat_clauses:
+        for unsat_clause in unass_cls:
             for sbl in unsat_clause:
                 scores[sbl] += 1
         sbl = max(sbls_pos, key=lambda s: scores[s])
+        return (sbl, True) if scores[sbl] >= scores[sbl.negate()] else (sbl, False)
+
+    def jwos(state: StateManager, formula: Formula) -> (Symbol, bool):
+        """
+        Jeroslow-Wang-one-sided (JW-OS) branching heuristic.
+        For each literal in unassigned clauses, let
+        J(l) = sum(for all lit in clause for all clause in formula s2^{-|w|})
+        where |w| is the number of unassigned clauses the literal appears in.
+        Select the assignment that satisfies the literal with largest value J(l).
+        """
+        sbls_pos = state.unassigned_symbols # unassigned symbols only
+        unass_cls = Solver.get_unresolved_clauses(formula, state.model)
+        scores = defaultdict(float)
+        for unsat_clause in unass_cls:
+            for s in unsat_clause:
+                scores[s.literal] += pow(2, -len(unsat_clause))
+        sbl = max(sbls_pos, key=lambda sb: scores[sb.literal])
+        return sbl, True
+
+    def jwts(state: StateManager, formula: Formula) -> (Symbol, bool):
+        """
+        Jeroslow-Wang-two-sided (JS-TS) branching heuristic.
+        Identifies the variable x with the largest sum J(x) + J(-x)
+        Assign x value true if J(x) >= J(-x), false otherwise.
+        """
+        sbls_pos = state.unassigned_symbols # unassigned symbols only
+        scores = defaultdict(float)
+        unass_cls = Solver.get_unresolved_clauses(formula, state.model)
+        for c in unass_cls:
+            for s in c:
+                scores[s] += pow(2, -len(c))
+        unass_sbls = [s for s in sbls_pos] + [s.negate() for s in sbls_pos]
+        sbl = max(unass_sbls, key=lambda sb: scores[sb] + scores[sb.negate()])
         return (sbl, True) if scores[sbl] >= scores[sbl.negate()] else (sbl, False)
 
     def default(state: StateManager, formula: Formula) -> (Symbol, bool):
@@ -59,6 +96,12 @@ def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:
     if heuristic == "DLIS":
         print("BRANCHING HEURISTIC: DLIS")
         return dlis
+    elif heuristic == "JWOS":
+        print("BRANCHING HEURISTIC: JWOS")
+        return jwos
+    elif heuristic == "JWTS":
+        print("BRANCHING HEURISTIC: JWTS")
+        return jwts
     elif heuristic == "DEFAULT":
         print("BRANCHING HEURISTIC: DEFAULT")
         return default
