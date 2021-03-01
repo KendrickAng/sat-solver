@@ -24,6 +24,8 @@ To see help for all available flags, run `python main.py -h`
   - Heuristic to select the next symbol to assign
   - `--branch-heuristic` or `-b`
   - `DLIS`: Dynamic Largest Individual Sum (of literals)
+  - `JWOS`: Jeroslow-Wang one-sided
+  - `JWTS`: Jeroslow-Wang two-sided
   - `DEFAULT`: Selects in FIFO the next unassigned positive symbol, assigns it true 
 - Log level
   - `--log-level` or `l`
@@ -57,6 +59,6 @@ All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 - Add different branching heuristics
   - BOHM
   - MOM
-  - Jeroslow-Wang
+  - Jeroslow-Wang (OK)
   - DLIS (OK)
 - Fix broken tests once branching vars are added (due to adding branching vars)
