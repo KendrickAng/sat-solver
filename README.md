@@ -55,9 +55,7 @@ All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 1. Note that the sample input from `https://www.cs.ubc.ca` is not compatible due to the presence of disallowed characters `%` and the `0` at the end.
 
 # Backlog
-- Add different branching heuristics
-  - BOHM
-  - MOM
-  - Jeroslow-Wang (OK)
-  - DLIS (OK)
+- https://baldur.iti.kit.edu/sat/files/2016/l05.pdf 
+- Restarts
+- Lazy data structures
 - Fix broken tests once branching vars are added (due to adding branching vars)

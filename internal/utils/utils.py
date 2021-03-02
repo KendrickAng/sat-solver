@@ -1,5 +1,7 @@
+from random import getrandbits
 from typing import Callable, List
 from collections import defaultdict
+from internal.utils.constants import F_HEURISTIC, F_STATS
 from internal.sat.model import Model
 from internal.sat.solver import Solver
 from internal.sat.stats import Stats
@@ -12,20 +14,20 @@ from internal.sat.formula import Formula
 
 logger = Logger.get_logger()
 
-def solve_cnf(filepath: str, branch_heuristic: str, has_stats: bool):
+def solve_cnf(filepath: str, config: dict):
     # parse
     prs = Parser()
     # Symbols (all pos), List[Symbol], Formula
     symbols, symbols_lst, formula = prs.parse(filepath)
 
     # generate solver
-    heuristic_fn = get_branch_heuristic(branch_heuristic, symbols_lst)
+    heuristic_fn = get_branch_heuristic(config[F_HEURISTIC], symbols_lst)
     model = Model.from_symbols(symbols)
     stats = Stats()
-    if has_stats:
-        solver = Solver(symbols, formula, model, heuristic_fn, stats)
+    if config[F_STATS]:
+        solver = Solver(symbols, formula, model, heuristic_fn, stats, config)
     else:
-        solver = Solver(symbols, formula, model, heuristic_fn, None)
+        solver = Solver(symbols, formula, model, heuristic_fn, None, config)
 
     # evaluate
     is_sat, sat_model = solver.cdcl()
@@ -34,7 +36,7 @@ def solve_cnf(filepath: str, branch_heuristic: str, has_stats: bool):
     print(f"SATISIFABLE: {is_sat}")
     if sat_model:
         print(f"MODEL: {sat_model}")
-    if has_stats:
+    if config[F_STATS]:
         print(stats.string())
 
 # Returns a function that takes in a state and formula, and returns a symbol and its assignment.
@@ -55,6 +57,20 @@ def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:
                 scores[sbl] += 1
         sbl = max(sbls_pos, key=lambda s: scores[s])
         return (sbl, True) if scores[sbl] >= scores[sbl.negate()] else (sbl, False)
+
+    def rdlis(state: StateManager, formula: Formula) -> (Symbol, bool):
+        """
+        Random DLIS, a variation of DLIS, randomly selects the value to be assigned to a given selected variable,
+        instead of comparing Cp with Cn, avoiding making too many bad decisions for a few specific instances.
+        """
+        sbls_pos = state.unassigned_symbols  # unassigned symbols only
+        unass_cls = Solver.get_unresolved_clauses(formula, state.model)
+        scores = defaultdict(int)
+        for unsat_clause in unass_cls:
+            for sbl in unsat_clause:
+                scores[sbl] += 1
+        sbl = max(sbls_pos, key=lambda s: scores[s])
+        return sbl, not getrandbits(1)
 
     def jwos(state: StateManager, formula: Formula) -> (Symbol, bool):
         """
@@ -89,6 +105,20 @@ def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:
         sbl = max(unass_sbls, key=lambda sb: scores[sb] + scores[sb.negate()])
         return (sbl, True) if scores[sbl] >= scores[sbl.negate()] else (sbl, False)
 
+    def moms(state: StateManager, formula: Formula) -> (Symbol, bool):
+        """
+        Maximum Occurrences on clauses of Minimum Size (MOM's) heuristic.
+        Returns the literal with the largest number of occurrences in the smallest unresolved clauses.
+        """
+        sbls = state.unassigned_symbols # unassigned postiive symbols only
+        scores = defaultdict(int)
+        clauses = Solver.get_min_unresolved_clauses(formula, state.model)
+        for c in clauses:
+            for s in c:
+                scores[s.literal] += 1
+        sbl = max(sbls, key=lambda x: scores[x.literal])
+        return sbl, True
+
     def default(state: StateManager, formula: Formula) -> (Symbol, bool):
         sbl, val = state.sbls_get_unassigned_sbl_fifo()
         return sbl, val
@@ -96,12 +126,18 @@ def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:
     if heuristic == "DLIS":
         print("BRANCHING HEURISTIC: DLIS")
         return dlis
+    elif heuristic == "RDLIS":
+        print("BRANCHING HEURISTIC: RDLIS")
+        return rdlis
     elif heuristic == "JWOS":
         print("BRANCHING HEURISTIC: JWOS")
         return jwos
     elif heuristic == "JWTS":
         print("BRANCHING HEURISTIC: JWTS")
         return jwts
+    elif heuristic == "MOMS":
+        print("BRANCHING HEURISTIC: MOMS")
+        return moms
     elif heuristic == "DEFAULT":
         print("BRANCHING HEURISTIC: DEFAULT")
         return default

@@ -9,6 +9,7 @@ from internal.sat.formula import Formula
 from internal.sat.clause import Clause
 from internal.sat.state_manager import StateManager
 from internal.sat.constants import TRUE, FALSE, UNASSIGNED
+from internal.utils.constants import F_PROGRESS
 from internal.utils.logger import Logger
 
 logger = Logger.get_logger()
@@ -20,11 +21,18 @@ class Solver:
     Clauses = the set of clauses.
     Model = the truth assignments of ALL variables (positive & negative), all initialised to None.
     """
-    def __init__(self, symbols: Symbols, formula: Formula, model: Model, heuristic_fn: Callable, stats: Stats):
+    def __init__(self, symbols: Symbols,
+                 formula: Formula,
+                 model: Model,
+                 heuristic_fn: Callable,
+                 stats: Stats,
+                 config: dict
+                 ):
         self.state = StateManager(symbols, model)
         self.formula = formula
         self.heuristic_fn = heuristic_fn
         self.stats = stats
+        self.config = config
 
     def cdcl(self) -> (bool, Model):
         logger.info(f"Formula {self.formula}")
@@ -34,6 +42,8 @@ class Solver:
         while not Solver.all_variables_assigned(self.formula, self.state.get_model()):
             logger.info(f"Now at decision level: {dl}")
             logger.info(f"Current model: {self.state.get_model_summary()}")
+            if self.config[F_PROGRESS]:
+                Solver.progress_bar(self.formula, self.state.get_model())
 
             # deduce stage
             # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
@@ -69,7 +79,8 @@ class Solver:
                 var, val = Solver.pick_branching_variable_update_state(self.state, dl, self.heuristic_fn, self.formula)
                 logger.info(f"End pick branching variable {var} {val}")
                 self.state.extend_model(var, val)
-                self.stats.inc_bc()
+                if self.stats:
+                    self.stats.inc_bc()
 
         # if we reach here, formula must be sat
         formula_status = self.state.get_model().get_formula_status(self.formula)
@@ -221,3 +232,16 @@ class Solver:
     @classmethod
     def get_unresolved_clauses(cls, f: Formula, m: Model) -> List[Clause]:
         return [x for x in f.get_clauses_with_learnt() if m.get_clause_status(x) == UNASSIGNED]
+
+    @classmethod
+    def get_min_unresolved_clauses(cls, f: Formula, m: Model) -> List[Clause]:
+        all_clauses = f.get_clauses_with_learnt()
+        min_clause = min(all_clauses, key=lambda x: len(x))
+        return [x for x in all_clauses if len(x) == len(min_clause) and m.get_clause_status(x) == UNASSIGNED]
+
+    @classmethod
+    def progress_bar(cls, f: Formula, m: Model):
+        all_clauses = f.get_clauses_with_learnt()
+        unsat_clauses = [x for x in all_clauses if m.get_clause_status(x) == UNASSIGNED]
+        percent = 100 * (1 - (len(unsat_clauses) / len(all_clauses)))
+        print(f"Progress (%): {int(percent)}", end='\r')

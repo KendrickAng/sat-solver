@@ -1,6 +1,7 @@
 import argparse, os
 import cProfile, pstats
 import time
+from internal.utils.constants import *
 from internal.utils.logger import Logger
 from internal.utils.utils import solve_cnf
 
@@ -20,19 +21,31 @@ parser.add_argument("-p", "--profile", dest="profile", action='store_true',
                     help="Activate profiling. Slows program significantly. Off by default.")
 parser.add_argument("-s", "--stats", dest="stats", action='store_true',
                     help="Activate statistics. Slows program minimally. Off by default.")
+parser.add_argument("-pb", "--progress-bar", dest="progress", action='store_true',
+                    help="Activate progress tracker. Slows program minimally. Off by default.")
 parser.add_argument("-b", "--branch-heuristic", dest="heuristic", type=str, default="DEFAULT",
                     help="Branching variable heuristic. Default: DEFAULT")
 
 args = parser.parse_args()
 
-if args.input_file and args.input_dir:
+config = {
+    F_INPUT_FILE: args.input_file,
+    F_INPUT_DIR: args.input_dir,
+    F_LOG_LEVEL: args.log_level,
+    F_PROFILE: args.profile,
+    F_STATS: args.stats,
+    F_PROGRESS: args.progress,
+    F_HEURISTIC: args.heuristic
+}
+
+if config[F_INPUT_FILE] and config[F_INPUT_DIR]:
     parser.print_help()
     exit(-1)
-if not (args.input_file or args.input_dir):
+if not (config[F_INPUT_FILE] or config[F_INPUT_DIR]):
     parser.print_help()
     exit(-1)
 
-Logger.set_level(args.log_level)
+Logger.set_level(config[F_LOG_LEVEL])
 logger = Logger.get_logger()
 
 # parse
@@ -42,26 +55,29 @@ input_dir_path = os.path.join(root_dir_path, "input")
 # profiling
 pr = cProfile.Profile(timer=time.process_time)
 
-if args.input_file:
-    filepath = os.path.join(input_dir_path, args.input_file)
-    if args.profile:
+if config[F_INPUT_FILE]:
+    filepath = os.path.join(input_dir_path, config[F_INPUT_FILE])
+    if config[F_PROFILE]:
+        print("Profiling activated")
         pr.enable()
 
-    solve_cnf(filepath, args.heuristic, args.stats)
+    solve_cnf(filepath, config)
 
-    if args.profile:
+    if config[F_PROFILE]:
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(pstats.SortKey.CUMULATIVE)
         ps.print_stats(10)
-elif args.input_dir:
-    dirpath = os.path.join(input_dir_path, args.input_dir)
-    if args.profile:
+elif config[F_INPUT_DIR]:
+    dirpath = os.path.join(input_dir_path, config[F_INPUT_DIR])
+    if config[F_PROFILE]:
+        print("Profiling activated")
         pr.enable()
 
     for entry in os.scandir(dirpath):
-        solve_cnf(entry.path, args.heuristic, args.stats)
+        print(entry.path)
+        solve_cnf(entry.path, config)
 
-    if args.profile:
+    if config[F_PROFILE]:
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(pstats.SortKey.CUMULATIVE)
         ps.print_stats(10)
