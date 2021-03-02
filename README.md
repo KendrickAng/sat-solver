@@ -4,8 +4,8 @@ Python 3.9.1
 # Getting started
 
 Run a single input file:\
-`python main.py --file sample.cnf --branch-heuristic DLIS --log-level INFO --stats`\
-`python main.py --file uf20-91\uf20-01.cnf --branch-heuristic DLIS --log-level NONE --stats`
+`python main.py --file sample.cnf --branch-heuristic DLIS --stats --progress-bar`\
+`python main.py --file uf20-91\uf20-01.cnf --branch-heuristic DLIS --stats --progress-bar`
 
 - Argument to --file should be under the "test" folder.
 
@@ -24,6 +24,8 @@ To see help for all available flags, run `python main.py -h`
   - Heuristic to select the next symbol to assign
   - `--branch-heuristic` or `-b`
   - `DLIS`: Dynamic Largest Individual Sum (of literals)
+  - `RDLIS`: Random DLIS
+  - `MOMS` : Maximum Occurrences on clauses of Minimum Size
   - `JWOS`: Jeroslow-Wang one-sided
   - `JWTS`: Jeroslow-Wang two-sided
   - `DEFAULT`: Selects in FIFO the next unassigned positive symbol, assigns it true 
@@ -36,9 +38,12 @@ To see help for all available flags, run `python main.py -h`
 - Profiling
   - Profiles the program, printing time spent in each function. Slows program execution.
   - `--profile` or `-p`
-- Statistics (WIP)
-  - Time spent to execute CDCL algorithm
+- Statistics
+  - Time spent to execute CDCL algorithm + number of branches
   - `--stats` or `-s`
+- Progress tracker
+  - Displays the percentage of resolved clauses (of 100%)
+  - `--progress-bar` or `-pb`
 
 # Input
 All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html`.
@@ -46,7 +51,7 @@ All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 `uf20-91`: 20 variables, 91 clauses - 1000 instances, all satisfiable\
 `uf50-218` / `uuf50-218`: 50 variables, 218 clauses - 1000 instances, all sat/unsat
 
-# Manual Verfication with CryptoMiniSat
+# Manual Verification with CryptoMiniSat
 1. Navigate to the `cryptominisat` folder
 1. Run `.\cryptominisat5.exe --verb 0 <filename>.cnf`
   - E.g `.\cryptominisat5.exe --verb 0 ..\input\sample.cnf`
