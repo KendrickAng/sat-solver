@@ -28,6 +28,8 @@ To see help for all available flags, run `python main.py -h`
   - `MOMS` : Maximum Occurrences on clauses of Minimum Size
   - `JWOS`: Jeroslow-Wang one-sided
   - `JWTS`: Jeroslow-Wang two-sided
+  - `RANDOM`: Random selection from unassigned symbols
+  - `3CH`: Three-clause heuristic, select the symbol with maximum occurrences in 3-clauses
   - `DEFAULT`: Selects in FIFO the next unassigned positive symbol, assigns it true 
 - Log level
   - `--log-level` or `l`

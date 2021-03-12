@@ -1,6 +1,6 @@
-from random import getrandbits
+from random import getrandbits, choice
 from typing import Callable, List
-from collections import defaultdict
+from collections import defaultdict, Counter
 from internal.utils.constants import F_HEURISTIC, F_STATS
 from internal.sat.model import Model
 from internal.sat.solver import Solver
@@ -119,6 +119,27 @@ def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:
         sbl = max(sbls, key=lambda x: scores[x.literal])
         return sbl, True
 
+    def rand(state: StateManager, formula: Formula) -> (Symbol, bool):
+        """
+        Randomly selects the next symbol to assign.
+        """
+        return choice([x for x in state.unassigned_symbols]), not getrandbits(1)
+
+    def threeClause(state: StateManager, formula: Formula) -> (Symbol, bool):
+        """
+        Choose the symbol with the maximum occurences in 3-clauses, break ties randomly
+        """
+        scores = Counter()
+        unass_cls = Solver.get_unresolved_clauses(formula, state.model)
+        for clause in unass_cls:
+            for sbl in clause:
+                scores[sbl.literal] += 1
+        max_score = -1 if len(scores) < 1 else max(scores.values())
+        choices = [x for x in state.unassigned_symbols if scores[x.literal] == max_score]
+        if len(choices) == 0:
+            choices = [x for x in state.unassigned_symbols]
+        return choice(choices), not getrandbits(1)
+
     def default(state: StateManager, formula: Formula) -> (Symbol, bool):
         sbl, val = state.sbls_get_unassigned_sbl_fifo()
         return sbl, val
@@ -138,6 +159,12 @@ def get_branch_heuristic(heuristic: str, sbl_lst: List[Symbol]) -> Callable:
     elif heuristic == "MOMS":
         print("BRANCHING HEURISTIC: MOMS")
         return moms
+    elif heuristic == "RANDOM":
+        print("BRANCHING HEURISTIC: RANDOM")
+        return rand
+    elif heuristic == "3CH":
+        print("BRANCHING HEURISTIC: 3CH")
+        return threeClause
     elif heuristic == "DEFAULT":
         print("BRANCHING HEURISTIC: DEFAULT")
         return default
