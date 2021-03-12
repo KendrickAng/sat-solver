@@ -20,6 +20,10 @@ class Clause:
     def __iter__(self):
         return self.symbol_list.__iter__()
 
+    # Allow dict usage
+    def __hash__(self):
+        return hash(tuple(self.symbol_list))
+
     def __eq__(self, other):
         # order shouldnt matter, and duplicates can be removed in a clause
         return set(self.symbol_list) == set(other.symbol_list)

@@ -1,13 +1,15 @@
 from collections import deque
-from typing import List
+from typing import List, Callable
 from heapq import nlargest
 from internal.sat.model import Model
+from internal.sat.stats import Stats
 from internal.sat.symbol import Symbol
 from internal.sat.symbols import Symbols
 from internal.sat.formula import Formula
 from internal.sat.clause import Clause
 from internal.sat.state_manager import StateManager
 from internal.sat.constants import TRUE, FALSE, UNASSIGNED
+from internal.utils.constants import F_PROGRESS
 from internal.utils.logger import Logger
 
 logger = Logger.get_logger()
@@ -19,24 +21,34 @@ class Solver:
     Clauses = the set of clauses.
     Model = the truth assignments of ALL variables (positive & negative), all initialised to None.
     """
-    def __init__(self, symbols: Symbols, formula: Formula, model: Model):
-        self.state = StateManager(symbols)
+    def __init__(self, symbols: Symbols,
+                 formula: Formula,
+                 model: Model,
+                 heuristic_fn: Callable,
+                 stats: Stats,
+                 config: dict
+                 ):
+        self.state = StateManager(symbols, model)
         self.formula = formula
-        self.model = model
+        self.heuristic_fn = heuristic_fn
+        self.stats = stats
+        self.config = config
 
     def cdcl(self) -> (bool, Model):
         logger.info(f"Formula {self.formula}")
-        logger.info(f"Initial model {self.model}")
+        logger.info(f"Initial model {self.state.get_model()}")
         dl = 0 # no guesses have been made
 
-        while not Solver.all_variables_assigned(self.formula, self.model):
+        while not Solver.all_variables_assigned(self.formula, self.state.get_model()):
             logger.info(f"Now at decision level: {dl}")
-            logger.info(f"Current model: {self.model.shorten()}")
+            logger.info(f"Current model: {self.state.get_model_summary()}")
+            if self.config[F_PROGRESS]:
+                Solver.progress_bar(self.formula, self.state.get_model())
 
             # deduce stage
             # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
             logger.info(f"Begin unit propagation")
-            conf_clause = Solver.unit_propagate(self.formula, self.model, self.state, dl)
+            conf_clause = Solver.unit_propagate(self.formula, self.state, dl)
             logger.info(f"End unit propagation")
 
             if conf_clause:
@@ -51,29 +63,31 @@ class Solver:
                 else:
                     # revert history to before we made the mistake
                     logger.info(f"Begin backtrack from {dl} to {lvl}")
-                    Solver.backtrack(self.state, self.model, lvl, dl)
+                    Solver.backtrack(self.state, lvl, dl)
                     logger.info(f"End backtrack from {dl} to {lvl}")
                     # avoid repeating the same mistake
                     self.formula.add_learnt_clause(learnt)
                     # decrement decision level due to backtracking
                     dl = lvl
-            elif Solver.all_variables_assigned(self.formula, self.model):
+            elif Solver.all_variables_assigned(self.formula, self.state.get_model()):
                 logger.info("All variables assigned, break")
                 break
             else:
                 # decide stage
                 dl += 1
                 logger.info(f"Begin pick branching variable")
-                var, val = Solver.pick_branching_variable_update_state(self.state, dl)
+                var, val = Solver.pick_branching_variable_update_state(self.state, dl, self.heuristic_fn, self.formula)
                 logger.info(f"End pick branching variable {var} {val}")
-                self.model.extend(var, val)
+                self.state.extend_model(var, val)
+                if self.stats:
+                    self.stats.inc_bc()
 
         # if we reach here, formula must be sat
-        formula_status = self.model.get_formula_status(self.formula)
+        formula_status = self.state.get_model().get_formula_status(self.formula)
         assert formula_status == TRUE
         logger.info(f"Verified formula SAT status with model")
 
-        return TRUE, self.model
+        return TRUE, self.state.get_model_summary()
 
     @classmethod
     def all_variables_assigned(cls, f: Formula, m: Model) -> bool:
@@ -86,7 +100,7 @@ class Solver:
         return True
 
     @classmethod
-    def unit_propagate(cls, f: Formula, mdl: Model, state: StateManager, dl: int) -> Clause:
+    def unit_propagate(cls, f: Formula, state: StateManager, dl: int) -> Clause:
         """
         Returns None if no conflict is detected, or the conflicting clause otherwise.
         """
@@ -96,7 +110,7 @@ class Solver:
             q = deque()
             seen_symbols = set()
             for clause in f.get_clauses_with_learnt():
-                clause_status = mdl.get_clause_status(clause)
+                clause_status = state.get_model_clause_status(clause)
                 if clause_status == TRUE:
                     # ignore already satisfied clauses
                     continue
@@ -106,7 +120,7 @@ class Solver:
                     return clause
                 else:
                     # filter unit clauses
-                    is_unit, unassigned_sbl = mdl.is_unit_clause(clause)
+                    is_unit, unassigned_sbl = state.get_model().is_unit_clause(clause)
                     tup = (unassigned_sbl, clause)
                     if is_unit and not (unassigned_sbl in seen_symbols or unassigned_sbl.negate() in seen_symbols):
                         q.append(tup)
@@ -120,18 +134,24 @@ class Solver:
                 while len(q) > 0:
                     symbol, antecedent = q.popleft()
                     symbol_pos, val = Solver.to_positive(symbol, TRUE)
-                    mdl.extend(symbol_pos, val)
-                    state.graph_add_node(symbol_pos, val, antecedent, dl)
+                    state.get_model().extend(symbol_pos, val)
+                    state.add_graph_node(symbol_pos, val, antecedent, dl)
                     state.sbls_mark_assigned(symbol_pos)
 
     @classmethod
-    def pick_branching_variable_update_state(cls, state: StateManager, dl: int) -> (Symbol, bool):
+    def pick_branching_variable_update_state(cls,
+                                             state: StateManager,
+                                             dl: int,
+                                             heuristic_fn: Callable,
+                                             formula: Formula
+                                             ) -> (Symbol, bool):
         """
         Picks new branching variable and updates history. dl for recording purposes.
         """
-        sbl, val = state.sbls_get_unassigned_sbl_fifo()
+        sbl, val = heuristic_fn(state, formula)
+        # sbl, val = state.sbls_get_unassigned_sbl_fifo()
         logger.debug(f"Pick unassigned symbol {sbl} {val}")
-        state.graph_add_node(sbl, val, None, dl)
+        state.add_graph_node(sbl, val, None, dl)
         logger.debug(f"Update implication graph {sbl} {val} {None} {dl}")
         state.sbls_mark_assigned(sbl)
         logger.debug(f"Mark {sbl} as assigned")
@@ -164,29 +184,29 @@ class Solver:
         learnt_clause = c
         symbol_pool = c.symbol_list
         # Continue until first UIP
-        while len(g.graph_get_sbls_at_lvl_in_clause(dl, learnt_clause)) != 1:
+        while len(g.get_graph_sbls_at_lvl_in_clause(dl, learnt_clause)) != 1:
             if len(symbol_pool) == 0:
                 break
             last_assigned, symbol_pool = next_recently_assigned(symbol_pool)
             last_assgn_pos = last_assigned.to_positive()
             if last_assgn_pos not in done_sbls_pos:
                 done_sbls_pos.add(last_assgn_pos)
-                clause = g.graph_get_antecedent(last_assgn_pos)
-                symbol_pool.extend(g.graph_get_parent_symbols(last_assgn_pos))
+                clause = g.get_graph_antecedent(last_assgn_pos)
+                symbol_pool.extend(g.get_graph_parent_symbols(last_assgn_pos))
                 if clause: # branching variables have no antecedent
                     logger.debug(f"Resolution {learnt_clause} {clause}")
                     learnt_clause = Solver.resolution(learnt_clause, clause, last_assgn_pos)
 
         # We assume every symbol in learnt clause is recorded in implication graph
-        lbd = [g.graph_get_level(sbl.to_positive()) for sbl in learnt_clause]
+        lbd = [g.get_graph_level(sbl.to_positive()) for sbl in learnt_clause]
 
         return (learnt_clause, 0) if len(lbd) == 1 else (learnt_clause, nlargest(2, lbd)[-1])
 
     @classmethod
-    def backtrack(cls, state: StateManager, model: Model, dl_lower: int, dl_upper: int):
+    def backtrack(cls, state: StateManager, dl_lower: int, dl_upper: int):
         assert dl_lower <= dl_upper
         # remove the branching history and implication graph history
-        state.revert_history(model, dl_lower, dl_upper)
+        state.revert_history(dl_lower, dl_upper)
 
     @classmethod
     def resolution(cls, c1: Clause, c2: Clause, s: Symbol) -> Clause:
@@ -208,3 +228,20 @@ class Solver:
             return s, val
         else:
             return s.negate(), not val
+
+    @classmethod
+    def get_unresolved_clauses(cls, f: Formula, m: Model) -> List[Clause]:
+        return [x for x in f.get_clauses_with_learnt() if m.get_clause_status(x) == UNASSIGNED]
+
+    @classmethod
+    def get_min_unresolved_clauses(cls, f: Formula, m: Model) -> List[Clause]:
+        all_clauses = f.get_clauses_with_learnt()
+        min_clause = min(all_clauses, key=lambda x: len(x))
+        return [x for x in all_clauses if len(x) == len(min_clause) and m.get_clause_status(x) == UNASSIGNED]
+
+    @classmethod
+    def progress_bar(cls, f: Formula, m: Model):
+        all_clauses = f.get_clauses_with_learnt()
+        unsat_clauses = [x for x in all_clauses if m.get_clause_status(x) == UNASSIGNED]
+        percent = 100 * (1 - (len(unsat_clauses) / len(all_clauses)))
+        print(f"Progress (%): {int(percent)}", end='\r')

@@ -12,7 +12,7 @@ class Parser:
     def __init__(self):
         pass
 
-    def parse(self, filepath: str) -> (Symbols, Formula):
+    def parse(self, filepath: str) -> (Symbols, List[Symbol], Formula):
         """
         Returns symbols parsed IN THE FILE and the clause list.
         """
@@ -38,6 +38,7 @@ class Parser:
                     # Read clauses and variables
                     clauses = []
                     symbols = Symbols()
+                    symbols_lst = []
                     for _ in range(num_clauses):
                         tokens = f.readline().strip().split()
                         if tokens[-1] != '0':
@@ -46,8 +47,9 @@ class Parser:
                         clauses.append(Clause(sbl_lst))
                         # Add read symbols as we go
                         for s in sbl_lst:
+                            symbols_lst.append(s)
                             symbols.add(s.to_positive()) # changing it to positive shouldn't affect anything
-                    return symbols, Formula(clauses)
+                    return symbols, symbols_lst, Formula(clauses)
 
                 line = f.readline().strip()
         raise FileFormatError("You should not be here")
