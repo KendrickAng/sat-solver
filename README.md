@@ -1,6 +1,8 @@
 # sat-solver
 Python 3.9.1
 
+**To see the program architecture and an explanation design choices, please see `DESIGN.MD`!**
+
 # Getting started
 
 Run a single input file:\
@@ -62,7 +64,8 @@ All Non-trivial CNF input has been taken from `https://www.cs.ubc.ca/~hoos/SATLI
 1. Note that the sample input from `https://www.cs.ubc.ca` is not compatible due to the presence of disallowed characters `%` and the `0` at the end.
 
 # Backlog
+- Design choice explanations
 - https://baldur.iti.kit.edu/sat/files/2016/l05.pdf 
 - Restarts
 - Lazy data structures
-- Fix broken tests once branching vars are added (due to adding branching vars)
+- Fix broken tests (low priority)
