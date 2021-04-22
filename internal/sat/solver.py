@@ -45,7 +45,6 @@ class Solver:
             if self.config[F_PROGRESS]:
                 Solver.progress_bar(self.formula, self.state.get_model())
 
-            # deduce stage
             # this strange position of unit_propagate is to ensure we propagate immediately after backtracking
             logger.info(f"Begin unit propagation")
             conf_clause = Solver.unit_propagate(self.formula, self.state, dl)
@@ -73,7 +72,6 @@ class Solver:
                 logger.info("All variables assigned, break")
                 break
             else:
-                # decide stage
                 dl += 1
                 logger.info(f"Begin pick branching variable")
                 var, val = Solver.pick_branching_variable_update_state(self.state, dl, self.heuristic_fn, self.formula)

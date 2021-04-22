@@ -34,8 +34,8 @@ def solve_cnf(filepath: str, config: dict):
 
     # display results
     print(f"SATISIFABLE: {is_sat}")
-    if sat_model:
-        print(f"MODEL: {sat_model}")
+    # if sat_model:
+    #     print(f"MODEL: {sat_model}")
     if config[F_STATS]:
         print(stats.string())
 
